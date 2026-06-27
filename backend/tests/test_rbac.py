@@ -9,7 +9,6 @@ Tests permission enforcement on CRM endpoints for different roles:
 """
 
 import uuid
-
 import pytest
 
 from fastapi.testclient import TestClient
@@ -60,7 +59,7 @@ def _create_user_with_role(role_name: str | None) -> dict:
         db.refresh(user)
 
         # Login to get a token
-        resp = client.post("/auth/login", json={"email": email, "password": "TestPass123!"})
+        resp = client.post("/auth/login", data={"username": email, "password": "TestPass123!"})
         assert resp.status_code == 200, resp.text
         token = resp.json()["access_token"]
 
@@ -90,7 +89,6 @@ _no_role = _create_user_with_role(None)
 # Tests: Admin — full access
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
 class TestAdminAccess:
     """Admin should have access to all CRM endpoints."""
 
@@ -140,7 +138,6 @@ class TestAdminAccess:
 class TestSalesExecutiveAccess:
     """Sales Executive can create/read leads and contacts but NOT products/users."""
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_create_lead(self):
         resp = client.post(
             "/crm/leads",
@@ -149,7 +146,6 @@ class TestSalesExecutiveAccess:
         )
         assert resp.status_code == 201, resp.text
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_read_leads(self):
         resp = client.get(
             "/crm/leads",
@@ -157,7 +153,6 @@ class TestSalesExecutiveAccess:
         )
         assert resp.status_code == 200, resp.text
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_create_contact(self):
         resp = client.post(
             "/crm/contacts",
@@ -166,7 +161,6 @@ class TestSalesExecutiveAccess:
         )
         assert resp.status_code == 201, resp.text
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_read_accounts(self):
         resp = client.get(
             "/crm/accounts",
@@ -206,7 +200,6 @@ class TestSalesExecutiveAccess:
 class TestSupportAccess:
     """Support can only read accounts, contacts, leads. No write. No products."""
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_read_accounts(self):
         resp = client.get(
             "/crm/accounts",
@@ -214,7 +207,6 @@ class TestSupportAccess:
         )
         assert resp.status_code == 200, resp.text
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_read_contacts(self):
         resp = client.get(
             "/crm/contacts",
@@ -222,7 +214,6 @@ class TestSupportAccess:
         )
         assert resp.status_code == 200, resp.text
 
-    @pytest.mark.xfail(reason="CRM tables not fully migrated yet", strict=False)
     def test_can_read_leads(self):
         resp = client.get(
             "/crm/leads",
