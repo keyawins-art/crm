@@ -76,7 +76,18 @@ class Contact(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     account = relationship("Account", back_populates="contacts", lazy="joined")
     owner = relationship("User", foreign_keys=[owner_id], lazy="joined")
     reported_to = relationship("Contact", remote_side="Contact.id", lazy="joined")
-    leads = relationship("Lead", back_populates="contact", lazy="dynamic")
+    leads = relationship(
+        "Lead",
+        back_populates="contact",
+        foreign_keys="Lead.contact_id",
+        lazy="dynamic"
+        )
+
+    converted_leads = relationship(
+        "Lead",
+        foreign_keys="Lead.converted_contact_id",
+        lazy="dynamic"
+        )
 
     @property
     def full_name(self):

@@ -71,7 +71,17 @@ class Account(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     # Relationships
     owner = relationship("User", foreign_keys=[owner_id], lazy="joined")
     contacts = relationship("Contact", back_populates="account", lazy="dynamic")
-    leads = relationship("Lead", back_populates="account", lazy="dynamic")
+    leads = relationship(
+    "Lead",
+        back_populates="account",
+        foreign_keys="Lead.account_id",
+        lazy="dynamic")
+
+    converted_leads = relationship(
+        "Lead",
+        foreign_keys="Lead.converted_account_id",
+        lazy="dynamic"
+    )
     opportunities = relationship("Opportunity", back_populates="account", lazy="dynamic")
 
     def __repr__(self):
