@@ -26,57 +26,53 @@ def log_audit(db: Session, user: User, action: AuditAction, entity_type: str, en
 """
 
 if "def log_audit" not in content:
-    idx = content.find('@router.get("/health"')
-    content = content[:idx] + log_audit_func + "\n\n" + content[idx:]
-
+    # Inject after get_db
+    idx = content.find('def get_db():')
+    idx = content.find('db.close()', idx) + len('db.close()')
+    content = content[:idx] + "\n\n" + log_audit_func + "\n\n" + content[idx:]
 
 # We will inject the log_audit call right before db.commit() in create, update, delete, hard_delete, restore.
+# We also need to be careful not to double-inject.
 
 # Create
-content = re.sub(
-    r'(db\.add\(obj\)\n\s+db\.commit\(\))',
-    r'\1\n    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)\n    db.commit() # secondary commit for audit if needed, but actually we should log before commit.',
-    content
-)
-
-# Fix the above regex since we want to insert it before commit. Let's do it cleanly:
-content = re.sub(
-    r'(db\.add\(obj\)\n\s+)(db\.commit\(\))',
-    r'\1db.flush()\n    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)\n    \2',
-    content
-)
+if "log_audit(db, current_user, AuditAction.CREATED" not in content:
+    content = re.sub(
+        r'(db\.add\(obj\)\n\s+)(db\.commit\(\))',
+        r'\1db.flush()\n    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)\n    \2',
+        content
+    )
 
 # Update
-content = re.sub(
-    r'(setattr\(obj, key, value\)\n\s+)(db\.commit\(\))',
-    r'\1log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)\n    \2',
-    content
-)
+if "log_audit(db, current_user, AuditAction.UPDATED" not in content:
+    content = re.sub(
+        r'(setattr\(obj, key, value\)\n\s+)(db\.commit\(\))',
+        r'\1log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)\n    \2',
+        content
+    )
 
 # Delete (Soft)
-content = re.sub(
-    r'(obj\.deleted_at = func\.now\(\)\n\s+)(db\.commit\(\))',
-    r'\1log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)\n    \2',
-    content
-)
+if "log_audit(db, current_user, AuditAction.DELETED" not in content:
+    content = re.sub(
+        r'(obj\.deleted_at = func\.now\(\)\n\s+)(db\.commit\(\))',
+        r'\1log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)\n    \2',
+        content
+    )
 
 # Delete (Hard)
-content = re.sub(
-    r'(db\.delete\(obj\)\n\s+)(db\.commit\(\))',
-    r'\1log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)\n    \2',
-    content
-)
+if "log_audit(db, current_user, AuditAction.DELETED" not in content:
+    content = re.sub(
+        r'(db\.delete\(obj\)\n\s+)(db\.commit\(\))',
+        r'\1log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)\n    \2',
+        content
+    )
 
 # Restore
-content = re.sub(
-    r'(obj\.deleted_at = None\n\s+)(db\.commit\(\))',
-    r'\1log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)\n    \2',
-    content
-)
-
-
-# Add the GET /audit-logs endpoint to app/api/dashboard.py instead of crm.py to keep things clean.
-# Wait, I'll just write it to dashboard.py in a separate step.
+if "log_audit(db, current_user, AuditAction.UPDATED" not in content:
+    content = re.sub(
+        r'(obj\.deleted_at = None\n\s+)(db\.commit\(\))',
+        r'\1log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)\n    \2',
+        content
+    )
 
 with open('app/api/crm.py', 'w') as f:
     f.write(content)
