@@ -116,6 +116,13 @@ class LeadUpdate(CRMBase):
     assigned_to_id: Optional[UUID] = None
 
 
+class LeadConvert(CRMBase):
+    create_opportunity: bool = True
+    opportunity_name: Optional[str] = None
+    account_id: Optional[UUID] = None
+    contact_id: Optional[UUID] = None
+
+
 class ProductCreate(CRMBase):
     name: str
     code: Optional[str] = None

@@ -42,3 +42,35 @@ def get_dashboard_stats(
         "opportunities": opportunities_count,
         "revenue": revenue
     }
+
+
+from app.models.audit import AuditLog
+
+@router.get("/audit-logs")
+def get_audit_logs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("accounts:read")),
+    limit: int = 50
+):
+    # Only Admin sees all logs. Sales Exec sees their own logs.
+    query = db.query(AuditLog)
+    if current_user.role and current_user.role.name != "Admin":
+        query = query.filter(AuditLog.user_id == current_user.id)
+        
+    logs = query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+    
+    return [
+        {
+            "id": log.id,
+            "action": log.action,
+            "entity_type": log.entity_type,
+            "entity_id": log.entity_id,
+            "details": log.details,
+            "created_at": log.created_at,
+            "user": {
+                "first_name": log.user.first_name if log.user else "System",
+                "last_name": log.user.last_name if log.user else ""
+            }
+        }
+        for log in logs
+    ]

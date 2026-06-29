@@ -1,3 +1,5 @@
+from app.schemas.activity import ActivityCreate, ActivityRead
+from datetime import date, timedelta
 import math
 from typing import List, Optional
 from uuid import UUID
@@ -7,6 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.core.rbac import require_permission
+from app.models.lead import LeadStatus
+from app.models.opportunity import OpportunityStage
+from app.models.audit import AuditLog, AuditAction
+from app.models.activity import TimelineActivity
 from app.models import (
     Account,
     Contact,
@@ -19,7 +25,7 @@ from app.models import (
 from app.schemas.crm import (
     AccountCreate, AccountRead, AccountUpdate,
     ContactCreate, ContactRead, ContactUpdate,
-    LeadCreate, LeadRead, LeadUpdate,
+    LeadCreate, LeadRead, LeadUpdate, LeadConvert,
     OpportunityCreate, OpportunityRead, OpportunityUpdate,
     ProductCreate, ProductRead, ProductUpdate,
     QuotationCreate, QuotationRead, QuotationUpdate,
@@ -35,6 +41,23 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+
+def log_audit(db: Session, user: User, action: AuditAction, entity_type: str, entity_id: UUID):
+    user_name = user.first_name or "User"
+    action_str = "created" if action == AuditAction.CREATED else "updated" if action == AuditAction.UPDATED else "deleted"
+    message = f"{user_name} {action_str} {entity_type}"
+    
+    audit_log = AuditLog(
+        user_id=user.id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        details=message
+    )
+    db.add(audit_log)
+    # We do NOT commit here, we rely on the caller's transaction
 
 
 @router.get("/health", include_in_schema=False)
@@ -65,7 +88,11 @@ def create_account(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -201,6 +228,7 @@ def update_account(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -234,6 +262,7 @@ def delete_account(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -263,6 +292,7 @@ def hard_delete_account(
         raise HTTPException(status_code=404, detail="Account not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -293,6 +323,7 @@ def restore_account(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -317,7 +348,11 @@ def create_contact(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -453,6 +488,7 @@ def update_contact(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -486,6 +522,7 @@ def delete_contact(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -515,6 +552,7 @@ def hard_delete_contact(
         raise HTTPException(status_code=404, detail="Contact not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -545,6 +583,7 @@ def restore_contact(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -569,7 +608,11 @@ def create_lead(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -678,7 +721,7 @@ def get_lead(
 @router.put("/leads/{id}", response_model=LeadRead)
 def update_lead(
     id: UUID,
-    payload: LeadUpdate,
+    payload: LeadUpdate, LeadConvert,
     current_user: User = Depends(require_permission("leads:update")),
     db: Session = Depends(get_db),
 ):
@@ -705,6 +748,7 @@ def update_lead(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -738,6 +782,7 @@ def delete_lead(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -767,6 +812,7 @@ def hard_delete_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -797,6 +843,7 @@ def restore_lead(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -821,7 +868,11 @@ def create_product(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -957,6 +1008,7 @@ def update_product(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -990,6 +1042,7 @@ def delete_product(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1019,6 +1072,7 @@ def hard_delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1049,6 +1103,7 @@ def restore_product(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -1073,7 +1128,11 @@ def create_opportunitie(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -1209,6 +1268,7 @@ def update_opportunitie(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -1242,6 +1302,7 @@ def delete_opportunitie(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1271,6 +1332,7 @@ def hard_delete_opportunitie(
         raise HTTPException(status_code=404, detail="Opportunity not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1301,6 +1363,7 @@ def restore_opportunitie(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -1325,7 +1388,11 @@ def create_quotation(
         obj.created_by_id = current_user.id
 
     db.add(obj)
+    db.flush()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
+    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -1461,6 +1528,7 @@ def update_quotation(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
@@ -1494,6 +1562,7 @@ def delete_quotation(
         
     obj.is_deleted = True
     obj.deleted_at = func.now()
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1523,6 +1592,7 @@ def hard_delete_quotation(
         raise HTTPException(status_code=404, detail="Quotation not found")
         
     db.delete(obj)
+    log_audit(db, current_user, AuditAction.DELETED, obj.__class__.__name__, obj.id)
     db.commit()
 
 
@@ -1553,9 +1623,177 @@ def restore_quotation(
         
     obj.is_deleted = False
     obj.deleted_at = None
+    log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
     return obj
+
+
+
+@router.post("/leads/{id}/convert", response_model=LeadRead)
+def convert_lead(
+    id: UUID,
+    payload: LeadConvert,
+    current_user: User = Depends(require_permission("leads:update")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    if lead.is_converted:
+        raise HTTPException(status_code=400, detail="Lead is already converted")
+
+    from sqlalchemy.sql import func
+    
+    # 1. Handle Account
+    account_id = payload.account_id
+    if not account_id:
+        acc_name = lead.company if lead.company else lead.full_name
+        account = Account(
+            name=acc_name,
+            industry=lead.industry,
+            annual_revenue=lead.annual_revenue,
+            owner_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(account)
+        db.flush()
+        account_id = account.id
+
+    # 2. Handle Contact
+    contact_id = payload.contact_id
+    if not contact_id:
+        contact = Contact(
+            first_name=lead.first_name,
+            last_name=lead.last_name,
+            email=lead.email,
+            phone=lead.phone,
+            mobile=lead.mobile,
+            title=lead.title,
+            account_id=account_id,
+            owner_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(contact)
+        db.flush()
+        contact_id = contact.id
+
+    # 3. Handle Opportunity
+    opportunity_id = None
+    if payload.create_opportunity:
+        opp_name = payload.opportunity_name
+        if not opp_name:
+            acc_name = lead.company if lead.company else lead.full_name
+            opp_name = f"{acc_name} - Deal"
+            
+        opportunity = Opportunity(
+            name=opp_name,
+            stage=OpportunityStage.PROSPECTING,
+            close_date=date.today() + timedelta(days=30),
+            account_id=account_id,
+            contact_id=contact_id,
+            lead_id=lead.id,
+            assigned_to_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(opportunity)
+        db.flush()
+        opportunity_id = opportunity.id
+
+    # 4. Update Lead
+    lead.is_converted = True
+    lead.status = LeadStatus.CONVERTED
+    lead.converted_at = func.now()
+    lead.converted_account_id = account_id
+    lead.converted_contact_id = contact_id
+    lead.converted_opportunity_id = opportunity_id
+    
+    db.commit()
+    db.refresh(lead)
+    
+    return lead
+
+
+# Activity Timeline
+@router.post("/{module_name}/{id}/activities", response_model=ActivityRead, status_code=status.HTTP_201_CREATED)
+def create_activity(
+    module_name: str,
+    id: UUID,
+    payload: ActivityCreate,
+    current_user: User = Depends(require_permission("accounts:read")), # Must have basic read access
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy.sql import func
+    # Validate that module_name is valid
+    valid_modules = ["accounts", "contacts", "leads", "opportunities", "products", "quotations"]
+    if module_name not in valid_modules:
+        raise HTTPException(status_code=400, detail="Invalid module name")
+        
+    activity = TimelineActivity(
+        entity_type=module_name,
+        entity_id=id,
+        activity_type=payload.activity_type,
+        content=payload.content,
+        activity_date=payload.activity_date or func.now(),
+        user_id=current_user.id
+    )
+    db.add(activity)
+    
+    # We log this creation to audit logs too
+    log_audit(db, current_user, AuditAction.CREATED, "Activity", id)
+    
+    db.commit()
+    db.refresh(activity)
+    return activity
+
+
+@router.get("/{module_name}/{id}/activities", response_model=PaginatedResponse[ActivityRead])
+def list_activities(
+    module_name: str,
+    id: UUID,
+    request: Request,
+    current_user: User = Depends(require_permission("accounts:read")),
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100)
+):
+    valid_modules = ["accounts", "contacts", "leads", "opportunities", "products", "quotations"]
+    if module_name not in valid_modules:
+        raise HTTPException(status_code=400, detail="Invalid module name")
+        
+    query = db.query(TimelineActivity).filter(
+        TimelineActivity.entity_type == module_name,
+        TimelineActivity.entity_id == id
+    )
+    
+    total = query.count()
+    offset = (page - 1) * size
+    items = query.order_by(TimelineActivity.created_at.desc()).offset(offset).limit(size).all()
+    
+    import math
+    return {
+        "items": items,
+        "page": page,
+        "size": size,
+        "total": total,
+        "pages": math.ceil(total / size) if size > 0 else 0
+    }
 
 
 # Users

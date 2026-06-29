@@ -21,6 +21,9 @@ from .opportunity import Opportunity, OpportunityStage, OpportunityType
 from .opportunity import OpportunityProduct
 from .opportunity import Quotation, QuotationStatus, QuotationItem
  
+# Module 6 — Activity
+from .activity import TimelineActivity
+
 # Module 7 — System
 from .audit import AuditLog, AuditAction
 from .audit import Notification, NotificationType
@@ -55,4 +58,7 @@ __all__ = [
     # System
     "AuditLog", "AuditAction",
     "Notification", "NotificationType",
+    
+    # Activity
+    "TimelineActivity",
 ]
