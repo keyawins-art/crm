@@ -1,6 +1,21 @@
 import re
 
 def generate_crud_block(module_name, model_class, schema_create, schema_read, schema_update, permissions_prefix):
+    rls_code = f"""
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr({model_class}, 'owner_id'):
+            query = query.filter({model_class}.owner_id == current_user.id)
+        elif hasattr({model_class}, 'assigned_to_id'):
+            if hasattr({model_class}, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_({model_class}.assigned_to_id == current_user.id, {model_class}.created_by_id == current_user.id))
+            else:
+                query = query.filter({model_class}.assigned_to_id == current_user.id)
+        elif hasattr({model_class}, 'created_by_id'):
+            query = query.filter({model_class}.created_by_id == current_user.id)
+"""
+
     return f'''
 # {module_name.capitalize()}
 @router.post("/{module_name}", response_model={schema_read}, status_code=status.HTTP_201_CREATED)
@@ -10,6 +25,16 @@ def create_{module_name[:-1]}(
     db: Session = Depends(get_db),
 ):
     obj = {model_class}(**payload.model_dump(exclude_none=True))
+    
+    # Auto-assign ownership if applicable
+    if hasattr(obj, 'owner_id') and not getattr(obj, 'owner_id', None):
+        obj.owner_id = current_user.id
+    elif hasattr(obj, 'assigned_to_id') and not getattr(obj, 'assigned_to_id', None):
+        obj.assigned_to_id = current_user.id
+        
+    if hasattr(obj, 'created_by_id') and not getattr(obj, 'created_by_id', None):
+        obj.created_by_id = current_user.id
+
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -18,15 +43,34 @@ def create_{module_name[:-1]}(
 
 @router.get("/{module_name}", response_model=List[{schema_read}])
 def list_{module_name}(
+    request: Request,
     current_user: User = Depends(require_permission("{permissions_prefix}:read")),
     db: Session = Depends(get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
     include_deleted: bool = False,
+    search: Optional[str] = None,
 ):
     query = db.query({model_class})
     if not include_deleted:
         query = query.filter({model_class}.is_deleted == False)
+{rls_code}
+    if search:
+        search_filters = []
+        for field in ['name', 'first_name', 'last_name', 'email', 'phone', 'company', 'subject']:
+            if hasattr({model_class}, field):
+                search_filters.append(getattr({model_class}, field).ilike(f"%{{search}}%"))
+        if search_filters:
+            from sqlalchemy import or_
+            query = query.filter(or_(*search_filters))
+
+    # Dynamic Field Filtering (e.g. ?industry=technology)
+    known_params = {{"page", "limit", "include_deleted", "search"}}
+    for key, value in request.query_params.items():
+        if key not in known_params and hasattr({model_class}, key):
+            query = query.filter(getattr({model_class}, key) == value)
+
+    skip = (page - 1) * limit
     return query.offset(skip).limit(limit).all()
 
 
@@ -36,7 +80,9 @@ def get_{module_name[:-1]}(
     current_user: User = Depends(require_permission("{permissions_prefix}:read")),
     db: Session = Depends(get_db),
 ):
-    obj = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False).first()
+    query = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False)
+{rls_code}
+    obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="{model_class} not found")
     return obj
@@ -49,7 +95,9 @@ def update_{module_name[:-1]}(
     current_user: User = Depends(require_permission("{permissions_prefix}:update")),
     db: Session = Depends(get_db),
 ):
-    obj = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False).first()
+    query = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False)
+{rls_code}
+    obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="{model_class} not found")
     
@@ -69,7 +117,9 @@ def delete_{module_name[:-1]}(
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.sql import func
-    obj = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False).first()
+    query = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == False)
+{rls_code}
+    obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="{model_class} not found")
         
@@ -84,7 +134,9 @@ def hard_delete_{module_name[:-1]}(
     current_user: User = Depends(require_permission("{permissions_prefix}:delete")),
     db: Session = Depends(get_db),
 ):
-    obj = db.query({model_class}).filter({model_class}.id == id).first()
+    query = db.query({model_class}).filter({model_class}.id == id)
+{rls_code}
+    obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="{model_class} not found")
         
@@ -98,7 +150,9 @@ def restore_{module_name[:-1]}(
     current_user: User = Depends(require_permission("{permissions_prefix}:update")),
     db: Session = Depends(get_db),
 ):
-    obj = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == True).first()
+    query = db.query({model_class}).filter({model_class}.id == id, {model_class}.is_deleted == True)
+{rls_code}
+    obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="{model_class} not found or not deleted")
         
@@ -121,6 +175,10 @@ modules = [
 with open('app/api/crm.py', 'r') as f:
     content = f.read()
 
+# Make sure Request is imported in crm.py
+if "from fastapi import Request" not in content and "Request" not in content:
+    content = content.replace("from fastapi import APIRouter", "from fastapi import APIRouter, Request")
+
 # Update imports
 imports_pattern = r'from app\.schemas\.crm import \((.*?)\)'
 def replace_imports(match):
@@ -135,8 +193,7 @@ def replace_imports(match):
 )"""
 content = re.sub(imports_pattern, replace_imports, content, flags=re.DOTALL)
 
-# Delete existing routes from # Accounts down to # Users (keep users for now or rewrite it)
-# Find the start of # Accounts
+# Delete existing routes from # Accounts down to # Users
 start_idx = content.find('# Accounts')
 if start_idx != -1:
     header = content[:start_idx]
@@ -145,7 +202,6 @@ if start_idx != -1:
     for mod in modules:
         new_blocks.append(generate_crud_block(*mod))
         
-    # Append the users block which we'll just keep as is for now, but we need to fetch it from old content
     users_start = content.find('# Users')
     if users_start != -1:
         users_block = content[users_start:]

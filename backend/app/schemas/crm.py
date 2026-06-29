@@ -1,8 +1,17 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, Generic, TypeVar, List
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
+
+T = TypeVar("T")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    page: int
+    size: int
+    total: int
+    pages: int
 
 
 class CRMBase(BaseModel):
