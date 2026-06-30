@@ -24,7 +24,8 @@ def seed():
                        "contacts:read", "contacts:create", "contacts:update", "contacts:delete",
                        "leads:read", "leads:create", "leads:update", "leads:delete",
                        "opportunities:read", "opportunities:create", "opportunities:update", "opportunities:delete",
-                       "quotations:read", "quotations:create", "quotations:update", "quotations:delete"]
+                       "quotations:read", "quotations:create", "quotations:update", "quotations:delete",
+                       "tickets:read", "tickets:create", "tickets:update", "tickets:delete"]
         
         for p in permissions:
             perm = db.query(Permission).filter(Permission.action == p).first()

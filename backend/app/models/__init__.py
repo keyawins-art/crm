@@ -33,6 +33,7 @@ from .integration import IntegrationConfig, IntegrationProvider, IntegrationStat
 from .sales_order import SalesOrder, SalesOrderStatus
 from .invoice import Invoice, InvoiceStatus
 from .payment import Payment
+from .ticket import Ticket, TicketStatus, TicketPriority
 
 # Module 7 — System
 from .audit import AuditLog, AuditAction
@@ -80,5 +81,6 @@ __all__ = [
     "IntegrationConfig", "IntegrationProvider", "IntegrationStatus",
     "SalesOrder", "SalesOrderStatus",
     "Invoice", "InvoiceStatus",
-    "Payment"
+    "Payment",
+    "Ticket", "TicketStatus", "TicketPriority"
 ]
