@@ -10,7 +10,7 @@ from app.models.lead import Lead, LeadStatus
 from app.models.opportunity import Opportunity, OpportunityStage
 from app.core.rbac import require_permission
 
-router = APIRouter(prefix="/reports", tags=["Reports"])
+router = APIRouter(prefix="/crm/reports", tags=["Reports"])
 
 def get_db():
     db = SessionLocal()
@@ -163,3 +163,130 @@ def get_performance_report(
         }
         for result in results
     ]
+
+@router.get("/leads")
+def get_leads_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("leads:read"))
+):
+    """General report for Leads grouped by status and rating."""
+    query = db.query(Lead).filter(Lead.is_deleted == False)
+    query = apply_rls(query, current_user, Lead)
+    
+    total = query.count()
+    converted = query.filter(Lead.is_converted == True).count()
+    hot_leads = query.filter(Lead.rating == "hot").count()
+    
+    return {
+        "total_leads": total,
+        "converted_leads": converted,
+        "hot_leads": hot_leads,
+        "conversion_rate": round((converted / total * 100) if total > 0 else 0, 2)
+    }
+
+@router.get("/opportunities")
+def get_opportunities_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("opportunities:read"))
+):
+    """General report for Opportunities showing pipeline health."""
+    query = db.query(Opportunity).filter(Opportunity.is_deleted == False)
+    query = apply_rls(query, current_user, Opportunity)
+    
+    total = query.count()
+    won = query.filter(Opportunity.stage == OpportunityStage.CLOSED_WON).count()
+    lost = query.filter(Opportunity.stage == OpportunityStage.CLOSED_LOST).count()
+    open_opps = total - won - lost
+    
+    from sqlalchemy.sql import func
+    total_value = db.query(func.sum(Opportunity.amount)).filter(Opportunity.is_deleted == False).scalar() or 0
+    won_value = db.query(func.sum(Opportunity.amount)).filter(Opportunity.is_deleted == False, Opportunity.stage == OpportunityStage.CLOSED_WON).scalar() or 0
+    
+    return {
+        "total_opportunities": total,
+        "open_opportunities": open_opps,
+        "won_opportunities": won,
+        "lost_opportunities": lost,
+        "total_pipeline_value": float(total_value),
+        "won_revenue": float(won_value)
+    }
+
+@router.get("/users")
+def get_users_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("opportunities:read"))
+):
+    """Report of activity and load per user."""
+    from sqlalchemy.sql import func
+    
+    # Get active users
+    users = db.query(User).filter(User.is_active == True).all()
+    report = []
+    
+    for u in users:
+        leads_count = db.query(Lead).filter(Lead.assigned_to_id == u.id, Lead.is_deleted == False).count() if hasattr(Lead, 'assigned_to_id') else 0
+        opps_count = db.query(Opportunity).filter(Opportunity.assigned_to_id == u.id, Opportunity.is_deleted == False).count()
+        won_revenue = db.query(func.sum(Opportunity.amount)).filter(
+            Opportunity.assigned_to_id == u.id, 
+            Opportunity.stage == OpportunityStage.CLOSED_WON,
+            Opportunity.is_deleted == False
+        ).scalar() or 0
+        
+        report.append({
+            "user_id": u.id,
+            "name": f"{u.first_name} {u.last_name or ''}".strip(),
+            "role": u.role.name if u.role else "N/A",
+            "active_leads": leads_count,
+            "active_opportunities": opps_count,
+            "won_revenue": float(won_revenue)
+        })
+        
+    return sorted(report, key=lambda x: x["won_revenue"], reverse=True)
+
+
+@router.get("/charts/lead-sources")
+def get_chart_lead_sources(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("leads:read"))
+):
+    """Chart data for Lead Sources pie chart."""
+    from app.models.lead import LeadSource
+    
+    query = db.query(
+        LeadSource.name,
+        func.count(Lead.id).label("count")
+    ).outerjoin(
+        Lead, Lead.source_id == LeadSource.id
+    ).filter(Lead.is_deleted == False)
+    
+    query = apply_rls(query, current_user, Lead)
+    results = query.group_by(LeadSource.name).all()
+    
+    return [
+        {"source": result.name, "count": result.count}
+        for result in results
+    ]
+
+
+@router.get("/charts/win-loss")
+def get_chart_win_loss(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("opportunities:read"))
+):
+    """Chart data for Win/Loss ratio."""
+    query = db.query(Opportunity).filter(Opportunity.is_deleted == False)
+    query = apply_rls(query, current_user, Opportunity)
+    
+    won = query.filter(Opportunity.stage == OpportunityStage.CLOSED_WON).count()
+    lost = query.filter(Opportunity.stage == OpportunityStage.CLOSED_LOST).count()
+    
+    total_closed = won + lost
+    win_rate = round((won / total_closed * 100) if total_closed > 0 else 0, 2)
+    loss_rate = round((lost / total_closed * 100) if total_closed > 0 else 0, 2)
+    
+    return {
+        "won": won,
+        "lost": lost,
+        "win_rate_percentage": win_rate,
+        "loss_rate_percentage": loss_rate
+    }
