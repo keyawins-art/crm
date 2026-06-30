@@ -14,7 +14,7 @@ from app.core.rbac import require_permission
 from app.schemas.notification import NotificationRead
 from app.schemas.crm import PaginatedResponse
 
-router = APIRouter(tags=["Notifications"])
+router = APIRouter(prefix="/crm", tags=["Notifications"])
 
 def get_db():
     db = SessionLocal()
@@ -99,38 +99,58 @@ def mark_read(
 # System cron endpoint to trigger time-based reminders
 @router.post("/system/trigger-reminders", status_code=status.HTTP_200_OK)
 def trigger_reminders(db: Session = Depends(get_db)):
-    # Find all meetings or tasks due in the next 24 hours that haven't been notified yet.
-    # To keep it simple, we use a naive approach: check activities from now to next 24h.
-    # We rely on searching Notification table to ensure we don't spam.
+    from app.models.task import Task
+    from app.models.meeting import Meeting
     
     now = datetime.utcnow()
     next_24h = now + timedelta(hours=24)
+    notified_count = 0
     
-    # We consider Call, Email, Meeting as "Tasks/Meetings" with due dates if activity_date is future.
-    upcoming_activities = db.query(TimelineActivity).filter(
-        TimelineActivity.activity_date > now,
-        TimelineActivity.activity_date <= next_24h,
-        TimelineActivity.user_id.isnot(None)
+    # Check Tasks
+    tasks = db.query(Task).filter(
+        Task.due_date > now,
+        Task.due_date <= next_24h,
+        Task.assigned_to_id.isnot(None),
+        Task.is_deleted == False
     ).all()
     
-    notified_count = 0
-    for act in upcoming_activities:
-        # Check if a notification already exists for this activity to prevent spam
-        # We can use the entity_id or title trick, but ideally we'd have a tracking table.
-        # We'll check if a notification with title starting with "Reminder:" for this act id exists.
-        
-        # A lightweight way to track is just search existing notifications
+    for task in tasks:
         exists = db.query(Notification).filter(
-            Notification.user_id == act.user_id,
-            Notification.title.like(f"Reminder: Upcoming {act.activity_type}%")
-        ).first() # Very naive deduplication for this phase
+            Notification.user_id == task.assigned_to_id,
+            Notification.title.like(f"Task Reminder: {task.title}")
+        ).first()
         
         if not exists:
-            msg = f"You have an upcoming {act.activity_type.value.lower()} scheduled for {act.activity_date.strftime('%Y-%m-%d %H:%M')} regarding {act.entity_type}."
+            msg = f"Your task '{task.title}' is due on {task.due_date.strftime('%Y-%m-%d %H:%M')}."
             send_notification(
                 db=db,
-                user_id=act.user_id,
-                title=f"Reminder: Upcoming {act.activity_type.value}",
+                user_id=task.assigned_to_id,
+                title=f"Task Reminder: {task.title}",
+                message=msg,
+                type=NotificationType.INFO
+            )
+            notified_count += 1
+
+    # Check Meetings
+    meetings = db.query(Meeting).filter(
+        Meeting.start_time > now,
+        Meeting.start_time <= next_24h,
+        Meeting.created_by_id.isnot(None),
+        Meeting.is_deleted == False
+    ).all()
+    
+    for meeting in meetings:
+        exists = db.query(Notification).filter(
+            Notification.user_id == meeting.created_by_id,
+            Notification.title.like(f"Meeting Reminder: {meeting.subject}")
+        ).first()
+        
+        if not exists:
+            msg = f"Your meeting '{meeting.subject}' starts at {meeting.start_time.strftime('%Y-%m-%d %H:%M')}."
+            send_notification(
+                db=db,
+                user_id=meeting.created_by_id,
+                title=f"Meeting Reminder: {meeting.subject}",
                 message=msg,
                 type=NotificationType.INFO
             )

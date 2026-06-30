@@ -1314,6 +1314,35 @@ def update_opportunitie(
     return obj
 
 
+@router.post("/opportunities/{id}/pay", response_model=OpportunityRead)
+def mark_opportunity_paid(
+    id: UUID,
+    current_user: User = Depends(require_permission("opportunities:update")),
+    db: Session = Depends(get_db),
+):
+    """Mock endpoint to record a payment and trigger a notification."""
+    obj = db.query(Opportunity).filter(Opportunity.id == id, Opportunity.is_deleted == False).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+        
+    obj.stage = OpportunityStage.CLOSED_WON
+    log_audit(db, current_user, AuditAction.UPDATED, "Opportunity (Payment)", obj.id)
+    
+    # Send Notification to Opportunity Owner
+    owner_id = getattr(obj, 'assigned_to_id', getattr(obj, 'owner_id', current_user.id))
+    send_notification(
+        db=db,
+        user_id=owner_id,
+        title="Payment Received",
+        message=f"Payment received for Opportunity: {obj.name}. Status updated to Closed Won.",
+        type=NotificationType.SUCCESS
+    )
+    
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 @router.delete("/opportunities/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_opportunitie(
     id: UUID,
