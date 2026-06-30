@@ -1812,7 +1812,7 @@ def get_lead_notes(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
-    notes = db.query(LeadNote, LeadActivity).filter(LeadNote, LeadActivity.lead_id == id).order_by(LeadNote, LeadActivity.created_at.desc()).all()
+    notes = db.query(LeadNote).filter(LeadNote.lead_id == id).order_by(LeadNote.created_at.desc()).all()
     return notes
 
 
