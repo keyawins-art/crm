@@ -16,6 +16,7 @@ from app.api.calls import router as calls_router
 from app.api.calendar import router as calendar_router
 from app.api.emails import router as emails_router
 from app.api.files import router as files_router
+from app.api.workflows import router as workflows_router
 
 app = FastAPI(title="Enterprise CRM API")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -32,6 +33,7 @@ app.include_router(calls_router)
 app.include_router(calendar_router)
 app.include_router(emails_router)
 app.include_router(files_router)
+app.include_router(workflows_router)
 
 
 @app.exception_handler(IntegrityError)

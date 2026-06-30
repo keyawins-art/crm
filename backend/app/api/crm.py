@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.core.rbac import require_permission
 from app.core.email import send_email
+from app.core.workflow import execute_workflows
 from app.models.lead import LeadStatus, LeadNote, LeadActivity
 from app.models.opportunity import OpportunityStage
 from app.models.audit import AuditLog, AuditAction
@@ -643,6 +644,9 @@ def create_lead(
             message=f"You have been assigned a new lead: {obj.first_name} {obj.last_name}",
             type=NotificationType.INFO
         )
+
+    # Trigger Workflows
+    background_tasks.add_task(execute_workflows, "Lead", "created", obj.id, current_user.id)
 
     db.refresh(obj)
     return obj

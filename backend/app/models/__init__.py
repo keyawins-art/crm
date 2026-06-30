@@ -28,6 +28,7 @@ from .task import Task, TaskPriority, TaskStatus
 from .meeting import Meeting, MeetingStatus
 from .call import Call, CallType
 from .email import EmailLog, EmailStatus
+from .workflow import WorkflowRule, WorkflowAction, WorkflowActionType
 
 # Module 7 — System
 from .audit import AuditLog, AuditAction
@@ -70,5 +71,6 @@ __all__ = [
     "Task", "TaskPriority", "TaskStatus",
     "Meeting", "MeetingStatus",
     "Call", "CallType",
-    "EmailLog", "EmailStatus"
+    "EmailLog", "EmailStatus",
+    "WorkflowRule", "WorkflowAction", "WorkflowActionType"
 ]
