@@ -11,6 +11,8 @@ class DocumentRead(BaseModel):
     file_path: str
     content_type: str
     file_size: int
+    category: Optional[str] = None
+    
     uploaded_by_id: Optional[UUID] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

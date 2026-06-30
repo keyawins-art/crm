@@ -14,6 +14,7 @@ class Document(Base, UUIDMixin, TimestampMixin):
     file_path = Column(String(512), nullable=False)
     content_type = Column(String(100), nullable=False)
     file_size = Column(Integer, nullable=False) # In bytes
+    category = Column(String(100), nullable=True) # e.g. "GST Certificate", "Invoice"
     
     uploaded_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
