@@ -16,7 +16,7 @@ from app.schemas.crm import PaginatedResponse
 from app.api.crm import log_audit
 from app.models.audit import AuditAction
 
-router = APIRouter(prefix="/crm/files", tags=["Files Management"])
+router = APIRouter(prefix="/crm/documents", tags=["Documents Management"])
 
 def get_db():
     db = SessionLocal()
@@ -33,7 +33,7 @@ ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".gif"
 }
 
-@router.post("/upload", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
 def upload_file(
     entity_type: str = Form(...),
     entity_id: UUID = Form(...),
