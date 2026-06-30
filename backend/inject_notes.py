@@ -1,49 +1,39 @@
 with open('app/schemas/crm.py', 'r') as f:
     schemas_content = f.read()
 
-activities_schemas = """
-class LeadActivityCreate(BaseModel):
-    type: str
-    subject: str
-    outcome: Optional[str] = None
-    description: Optional[str] = None
-    date: Optional[datetime] = None
-    duration_minutes: Optional[str] = None
+notes_schemas = """
+class LeadNoteCreate(BaseModel):
+    content: str
+    is_pinned: Optional[bool] = False
 
-class LeadActivityRead(BaseModel):
+class LeadNoteRead(LeadNoteCreate):
     id: UUID
     lead_id: UUID
     user_id: Optional[UUID] = None
-    type: str
-    subject: str
-    outcome: Optional[str] = None
-    description: Optional[str] = None
-    activity_date: Optional[datetime] = None
-    duration_minutes: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 """
-if "class LeadActivityCreate" not in schemas_content:
-    schemas_content = schemas_content + "\n" + activities_schemas
+if "class LeadNoteCreate" not in schemas_content:
+    schemas_content = schemas_content + "\n" + notes_schemas
     with open('app/schemas/crm.py', 'w') as f:
         f.write(schemas_content)
-    print("Injected Activities schemas.")
+    print("Injected Notes schemas.")
 
 with open('app/api/crm.py', 'r') as f:
     api_content = f.read()
 
-if "from app.models.lead import LeadActivity" not in api_content:
-    api_content = api_content.replace("LeadNote", "LeadNote, LeadActivity")
-if "LeadActivityCreate" not in api_content:
-    api_content = api_content.replace("LeadNoteRead,", "LeadNoteRead, LeadActivityCreate, LeadActivityRead,")
+if "from app.models.lead import LeadNote" not in api_content:
+    api_content = api_content.replace("from app.models.lead import LeadStatus", "from app.models.lead import LeadStatus, LeadNote")
+if "from app.schemas.crm import" in api_content and "LeadNoteCreate" not in api_content:
+    api_content = api_content.replace("LeadConvert,", "LeadConvert, LeadNoteCreate, LeadNoteRead,")
     
-activities_code = """
-@router.post("/leads/{id}/activities", response_model=LeadActivityRead)
-def add_lead_activity(
+notes_code = """
+@router.post("/leads/{id}/notes", response_model=LeadNoteRead)
+def add_lead_note(
     id: UUID,
-    payload: LeadActivityCreate,
+    payload: LeadNoteCreate,
     current_user: User = Depends(require_permission("leads:update")),
     db: Session = Depends(get_db),
 ):
@@ -66,35 +56,19 @@ def add_lead_activity(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
-    activity = LeadActivity(
+    note = LeadNote(
         lead_id=id,
         user_id=current_user.id,
-        type=payload.type.lower(),
-        subject=payload.subject,
-        outcome=payload.outcome,
-        description=payload.description,
-        activity_date=payload.date,
-        duration_minutes=payload.duration_minutes
+        content=payload.content,
+        is_pinned=payload.is_pinned
     )
-    db.add(activity)
-    
-    # Add to Timeline
-    timeline_activity = TimelineActivity(
-        entity_type="leads",
-        entity_id=id,
-        activity_type=payload.type.lower(),
-        content=f"{payload.type}: {payload.subject}",
-        activity_date=payload.date,
-        user_id=current_user.id
-    )
-    db.add(timeline_activity)
-    
+    db.add(note)
     db.commit()
-    db.refresh(activity)
-    return activity
+    db.refresh(note)
+    return note
 
-@router.get("/leads/{id}/activities", response_model=List[LeadActivityRead])
-def get_lead_activities(
+@router.get("/leads/{id}/notes", response_model=List[LeadNoteRead])
+def get_lead_notes(
     id: UUID,
     current_user: User = Depends(require_permission("leads:read")),
     db: Session = Depends(get_db),
@@ -118,16 +92,16 @@ def get_lead_activities(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
-    activities = db.query(LeadActivity).filter(LeadActivity.lead_id == id).order_by(LeadActivity.created_at.desc()).all()
-    return activities
+    notes = db.query(LeadNote).filter(LeadNote.lead_id == id).order_by(LeadNote.created_at.desc()).all()
+    return notes
 
 """
 
 users_start = api_content.find('# Users')
 if users_start != -1:
-    new_api = api_content[:users_start] + activities_code + api_content[users_start:]
+    new_api = api_content[:users_start] + notes_code + api_content[users_start:]
     with open('app/api/crm.py', 'w') as f:
         f.write(new_api)
-    print("Injected Activities endpoint.")
+    print("Injected Notes endpoint.")
 else:
-    print("Could not find '# Users' to inject activities endpoint.")
+    print("Could not find '# Users' to inject notes endpoint.")

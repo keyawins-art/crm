@@ -119,8 +119,16 @@ class LeadUpdate(CRMBase):
 class LeadConvert(CRMBase):
     create_opportunity: bool = True
     opportunity_name: Optional[str] = None
+    amount: Optional[float] = None
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
+
+class LeadConversionResponse(BaseModel):
+    lead_id: UUID
+    account_id: UUID
+    contact_id: UUID
+    opportunity_id: Optional[UUID] = None
+    status: str
 
 
 class ProductCreate(CRMBase):
@@ -230,3 +238,80 @@ class UserRead(CRMBase):
     status: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class LeadNoteCreate(BaseModel):
+    content: str
+    is_pinned: Optional[bool] = False
+
+class LeadNoteRead(LeadNoteCreate):
+    id: UUID
+    lead_id: UUID
+    user_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeadActivityCreate(BaseModel):
+    type: str
+    subject: str
+    outcome: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[datetime] = None
+    duration_minutes: Optional[str] = None
+
+class LeadActivityRead(BaseModel):
+    id: UUID
+    lead_id: UUID
+    user_id: Optional[UUID] = None
+    type: str
+    subject: str
+    outcome: Optional[str] = None
+    description: Optional[str] = None
+    activity_date: Optional[datetime] = None
+    duration_minutes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DashboardRead(BaseModel):
+    accounts: int
+    contacts: int
+    leads: int
+    opportunities: int
+    revenue: float
+
+
+class KPIRead(BaseModel):
+    conversion_rate: float
+    win_rate: float
+    lost_rate: float
+
+
+class MonthlyLeadChart(BaseModel):
+    month: str
+    count: int
+
+class RevenueChart(BaseModel):
+    month: str
+    revenue: float
+
+class FunnelChart(BaseModel):
+    stage: str
+    count: int
+
+
+class AuditLogRead(BaseModel):
+    id: UUID
+    user_id: Optional[UUID] = None
+    entity_type: str
+    entity_id: Optional[UUID] = None
+    action: str
+    details: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

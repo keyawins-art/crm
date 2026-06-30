@@ -3,7 +3,7 @@ with open('app/api/crm.py', 'r') as f:
 
 # Make sure we have necessary imports
 if "LeadConvert" not in content:
-    content = content.replace("LeadUpdate,", "LeadUpdate, LeadConvert,")
+    content = content.replace("LeadUpdate,", "LeadUpdate, LeadConvert, LeadConversionResponse,")
 
 if "from datetime import date, timedelta" not in content:
     content = "from datetime import date, timedelta\n" + content
@@ -12,7 +12,7 @@ if "from app.models.lead import LeadStatus" not in content:
     content = content.replace("from app.models import (", "from app.models.lead import LeadStatus\nfrom app.models.opportunity import OpportunityStage\nfrom app.models import (")
 
 convert_code = """
-@router.post("/leads/{id}/convert", response_model=LeadRead)
+@router.post("/leads/{id}/convert", response_model=LeadConversionResponse)
 def convert_lead(
     id: UUID,
     payload: LeadConvert,
@@ -46,7 +46,7 @@ def convert_lead(
     # 1. Handle Account
     account_id = payload.account_id
     if not account_id:
-        acc_name = lead.company if lead.company else lead.full_name
+        acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
         account = Account(
             name=acc_name,
             industry=lead.industry,
@@ -81,12 +81,13 @@ def convert_lead(
     if payload.create_opportunity:
         opp_name = payload.opportunity_name
         if not opp_name:
-            acc_name = lead.company if lead.company else lead.full_name
+            acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
             opp_name = f"{acc_name} - Deal"
             
         opportunity = Opportunity(
             name=opp_name,
             stage=OpportunityStage.PROSPECTING,
+            amount=payload.amount,
             close_date=date.today() + timedelta(days=30),
             account_id=account_id,
             contact_id=contact_id,
@@ -109,7 +110,13 @@ def convert_lead(
     db.commit()
     db.refresh(lead)
     
-    return lead
+    return LeadConversionResponse(
+        lead_id=lead.id,
+        account_id=account_id,
+        contact_id=contact_id,
+        opportunity_id=opportunity_id,
+        status="converted"
+    )
 
 """
 

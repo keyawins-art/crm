@@ -1,3 +1,4 @@
+from app.schemas.activity import ActivityRead
 from app.api.notifications import send_notification
 from app.models.audit import NotificationType
 from app.schemas.activity import ActivityCreate, ActivityRead
@@ -6,12 +7,13 @@ import math
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Request, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.core.rbac import require_permission
-from app.models.lead import LeadStatus
+from app.core.email import send_email
+from app.models.lead import LeadStatus, LeadNote, LeadActivity
 from app.models.opportunity import OpportunityStage
 from app.models.audit import AuditLog, AuditAction
 from app.models.activity import TimelineActivity
@@ -27,7 +29,7 @@ from app.models import (
 from app.schemas.crm import (
     AccountCreate, AccountRead, AccountUpdate,
     ContactCreate, ContactRead, ContactUpdate,
-    LeadCreate, LeadRead, LeadUpdate, LeadConvert,
+    LeadCreate, LeadRead, LeadUpdate, LeadConvert, LeadConversionResponse, LeadNoteCreate, LeadNoteRead, LeadActivityCreate, LeadActivityRead, DashboardRead, KPIRead, MonthlyLeadChart, RevenueChart, FunnelChart, AuditLogRead,
     OpportunityCreate, OpportunityRead, OpportunityUpdate,
     ProductCreate, ProductRead, ProductUpdate,
     QuotationCreate, QuotationRead, QuotationUpdate,
@@ -96,6 +98,13 @@ def create_account(
     log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
+    if obj.email:
+        background_tasks.add_task(
+            send_email,
+            obj.email,
+            "Welcome to our CRM!",
+            f"Hi {obj.first_name},\n\nThank you for connecting with us. We will follow up shortly.\n\nBest regards,\nSales Team"
+        )
     return obj
 
 
@@ -110,6 +119,8 @@ def list_accounts(
     order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     include_deleted: bool = False,
     search: Optional[str] = None,
+    industry: Optional[str] = None,
+    type: Optional[str] = None,
 ):
     query = db.query(Account)
     if not include_deleted:
@@ -233,6 +244,13 @@ def update_account(
     log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
+    if 'status' in update_data and str(update_data['status']).lower() == 'sent' and obj.opportunity and obj.opportunity.contact and obj.opportunity.contact.email:
+        background_tasks.add_task(
+            send_email,
+            obj.opportunity.contact.email,
+            f"Quotation {getattr(obj, 'quote_number', 'unknown')} Attached",
+            f"Hi {obj.opportunity.contact.first_name},\n\nPlease find the attached quotation for {obj.opportunity.name}.\n\nTotal Amount: {obj.total_amount}\n\nBest regards,\nSales Team"
+        )
     return obj
 
 
@@ -595,6 +613,7 @@ def restore_contact(
 @router.post("/leads", response_model=LeadRead, status_code=status.HTTP_201_CREATED)
 def create_lead(
     payload: LeadCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_permission("leads:create")),
     db: Session = Depends(get_db),
 ):
@@ -615,6 +634,16 @@ def create_lead(
     db.commit()
     log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit() # secondary commit for audit if needed, but actually we should log before commit.
+    
+    if hasattr(obj, 'assigned_to_id') and obj.assigned_to_id and obj.assigned_to_id != current_user.id:
+        send_notification(
+            db=db,
+            user_id=obj.assigned_to_id,
+            title="Lead Assigned",
+            message=f"You have been assigned a new lead: {obj.first_name} {obj.last_name}",
+            type=NotificationType.INFO
+        )
+
     db.refresh(obj)
     return obj
 
@@ -723,7 +752,7 @@ def get_lead(
 @router.put("/leads/{id}", response_model=LeadRead)
 def update_lead(
     id: UUID,
-    payload: LeadUpdate, LeadConvert,
+    payload: LeadUpdate,
     current_user: User = Depends(require_permission("leads:update")),
     db: Session = Depends(get_db),
 ):
@@ -751,6 +780,15 @@ def update_lead(
         setattr(obj, key, value)
         
     log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
+    if 'assigned_to_id' in update_data and update_data['assigned_to_id'] and update_data['assigned_to_id'] != current_user.id:
+        send_notification(
+            db=db,
+            user_id=update_data['assigned_to_id'],
+            title="Lead Assigned",
+            message=f"You have been assigned a lead: {obj.first_name} {obj.last_name}",
+            type=NotificationType.INFO
+        )
+        
     db.commit()
     db.refresh(obj)
     return obj
@@ -1504,6 +1542,7 @@ def get_quotation(
 def update_quotation(
     id: UUID,
     payload: QuotationUpdate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_permission("quotations:update")),
     db: Session = Depends(get_db),
 ):
@@ -1531,6 +1570,15 @@ def update_quotation(
         setattr(obj, key, value)
         
     log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
+    if 'status' in update_data and str(update_data['status']).lower() == 'accepted':
+        send_notification(
+            db=db,
+            user_id=obj.created_by_id or current_user.id,
+            title="Quotation Approved",
+            message=f"Quotation {getattr(obj, 'quote_number', 'unknown')} has been approved!",
+            type=NotificationType.SUCCESS
+        )
+
     db.commit()
     db.refresh(obj)
     return obj
@@ -1725,6 +1773,14 @@ def convert_lead(
     lead.converted_account_id = account_id
     lead.converted_contact_id = contact_id
     lead.converted_opportunity_id = opportunity_id
+    audit_log = AuditLog(
+        user_id=current_user.id,
+        action=AuditAction.UPDATED,
+        entity_type='Lead',
+        entity_id=lead.id,
+        details=f"{current_user.first_name or 'User'} converted Lead"
+    )
+    db.add(audit_log)
     
     db.commit()
     db.refresh(lead)
@@ -1733,6 +1789,241 @@ def convert_lead(
 
 
 # Activity Timeline
+@router.get("/leads/{id}/timeline", response_model=List[ActivityRead])
+def get_lead_timeline(
+    id: UUID,
+    current_user: User = Depends(require_permission("leads:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    activities = db.query(TimelineActivity).filter(
+        TimelineActivity.entity_type == "leads",
+        TimelineActivity.entity_id == id
+    ).order_by(TimelineActivity.created_at.desc()).all()
+    
+    return activities
+
+
+@router.post("/leads/{id}/notes", response_model=LeadNoteRead)
+def add_lead_note(
+    id: UUID,
+    payload: LeadNoteCreate,
+    current_user: User = Depends(require_permission("leads:update")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    note = LeadNote(
+        lead_id=id,
+        user_id=current_user.id,
+        content=payload.content,
+        is_pinned=payload.is_pinned
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+@router.get("/leads/{id}/notes", response_model=List[LeadNoteRead])
+def get_lead_notes(
+    id: UUID,
+    current_user: User = Depends(require_permission("leads:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    notes = db.query(LeadNote, LeadActivity).filter(LeadNote, LeadActivity.lead_id == id).order_by(LeadNote, LeadActivity.created_at.desc()).all()
+    return notes
+
+
+@router.post("/leads/{id}/activities", response_model=LeadActivityRead)
+def add_lead_activity(
+    id: UUID,
+    payload: LeadActivityCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_permission("leads:update")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    activity = LeadActivity(
+        lead_id=id,
+        user_id=current_user.id,
+        type=payload.type.lower(),
+        subject=payload.subject,
+        outcome=payload.outcome,
+        description=payload.description,
+        activity_date=payload.date,
+        duration_minutes=payload.duration_minutes
+    )
+    db.add(activity)
+    
+    # Add to Timeline
+    timeline_activity = TimelineActivity(
+        entity_type="leads",
+        entity_id=id,
+        activity_type=payload.type.lower(),
+        content=f"{payload.type}: {payload.subject}",
+        activity_date=payload.date,
+        user_id=current_user.id
+    )
+    db.add(timeline_activity)
+    
+    db.commit()
+    db.refresh(activity)
+    if activity.type == 'email' and lead.email:
+        background_tasks.add_task(
+            send_email,
+            lead.email,
+            activity.subject or "Follow-up",
+            activity.description or f"Hi {lead.first_name},\n\nThis is a follow up regarding our previous conversation.\n\nBest regards,\nSales Team"
+        )
+    return activity
+
+@router.get("/leads/{id}/activities", response_model=List[LeadActivityRead])
+def get_lead_activities(
+    id: UUID,
+    current_user: User = Depends(require_permission("leads:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    activities = db.query(LeadActivity).filter(LeadActivity.lead_id == id).order_by(LeadActivity.created_at.desc()).all()
+    return activities
+
+
+@router.get("/dashboard", response_model=DashboardRead)
+def get_dashboard(
+    current_user: User = Depends(require_permission("accounts:read")), # Base permission check
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import func
+    
+    # 1. Accounts Count
+    acc_query = db.query(Account).filter(Account.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Account, 'owner_id'):
+            acc_query = acc_query.filter(Account.owner_id == current_user.id)
+    accounts_count = acc_query.count()
+
+    # 2. Contacts Count
+    cont_query = db.query(Contact).filter(Contact.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Contact, 'owner_id'):
+            cont_query = cont_query.filter(Contact.owner_id == current_user.id)
+    contacts_count = cont_query.count()
+
+    # 3. Leads Count
+    lead_query = db.query(Lead).filter(Lead.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            lead_query = lead_query.filter(Lead.owner_id == current_user.id)
+    leads_count = lead_query.count()
+
+    # 4. Opportunities Count & Revenue
+    opp_query = db.query(Opportunity).filter(Opportunity.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Opportunity, 'assigned_to_id'):
+            opp_query = opp_query.filter(Opportunity.assigned_to_id == current_user.id)
+    
+    opportunities_count = opp_query.count()
+    revenue = db.query(func.sum(Opportunity.amount)).filter(Opportunity.is_deleted == False).scalar() or 0.0
+
+    return {
+        "accounts": accounts_count,
+        "contacts": contacts_count,
+        "leads": leads_count,
+        "opportunities": opportunities_count,
+        "revenue": float(revenue)
+    }
+
+
 @router.post("/{module_name}/{id}/activities", response_model=ActivityRead, status_code=status.HTTP_201_CREATED)
 def create_activity(
     module_name: str,
@@ -1797,6 +2088,244 @@ def list_activities(
         "pages": math.ceil(total / size) if size > 0 else 0
     }
 
+
+
+@router.post("/leads/{id}/convert", response_model=LeadConversionResponse)
+def convert_lead(
+    id: UUID,
+    payload: LeadConvert,
+    current_user: User = Depends(require_permission("leads:update")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.id == id, Lead.is_deleted == False)
+    
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+        elif hasattr(Lead, 'assigned_to_id'):
+            if hasattr(Lead, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Lead.assigned_to_id == current_user.id, Lead.created_by_id == current_user.id))
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
+        elif hasattr(Lead, 'created_by_id'):
+            query = query.filter(Lead.created_by_id == current_user.id)
+
+    lead = query.first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    if lead.is_converted:
+        raise HTTPException(status_code=400, detail="Lead is already converted")
+
+    from sqlalchemy.sql import func
+    
+    # 1. Handle Account
+    account_id = payload.account_id
+    if not account_id:
+        acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
+        account = Account(
+            name=acc_name,
+            industry=lead.industry,
+            annual_revenue=lead.annual_revenue,
+            owner_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(account)
+        db.flush()
+        account_id = account.id
+
+    # 2. Handle Contact
+    contact_id = payload.contact_id
+    if not contact_id:
+        contact = Contact(
+            first_name=lead.first_name,
+            last_name=lead.last_name,
+            email=lead.email,
+            phone=lead.phone,
+            mobile=lead.mobile,
+            title=lead.title,
+            account_id=account_id,
+            owner_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(contact)
+        db.flush()
+        contact_id = contact.id
+
+    # 3. Handle Opportunity
+    opportunity_id = None
+    if payload.create_opportunity:
+        opp_name = payload.opportunity_name
+        if not opp_name:
+            acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
+            opp_name = f"{acc_name} - Deal"
+            
+        opportunity = Opportunity(
+            name=opp_name,
+            stage=OpportunityStage.PROSPECTING,
+            amount=payload.amount,
+            close_date=date.today() + timedelta(days=30),
+            account_id=account_id,
+            contact_id=contact_id,
+            lead_id=lead.id,
+            assigned_to_id=lead.assigned_to_id or current_user.id,
+            created_by_id=current_user.id
+        )
+        db.add(opportunity)
+        db.flush()
+        opportunity_id = opportunity.id
+
+    # 4. Update Lead
+    lead.is_converted = True
+    lead.status = LeadStatus.CONVERTED
+    lead.converted_at = func.now()
+    lead.converted_account_id = account_id
+    lead.converted_contact_id = contact_id
+    lead.converted_opportunity_id = opportunity_id
+    
+    db.commit()
+    db.refresh(lead)
+    
+    return LeadConversionResponse(
+        lead_id=lead.id,
+        account_id=account_id,
+        contact_id=contact_id,
+        opportunity_id=opportunity_id,
+        status="converted"
+    )
+
+
+
+@router.get("/dashboard/kpi", response_model=KPIRead)
+def get_dashboard_kpi(
+    current_user: User = Depends(require_permission("accounts:read")),
+    db: Session = Depends(get_db),
+):
+    # Base queries with RLS
+    lead_query = db.query(Lead).filter(Lead.is_deleted == False)
+    opp_query = db.query(Opportunity).filter(Opportunity.is_deleted == False)
+    
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            lead_query = lead_query.filter(Lead.owner_id == current_user.id)
+        if hasattr(Opportunity, 'assigned_to_id'):
+            opp_query = opp_query.filter(Opportunity.assigned_to_id == current_user.id)
+            
+    # Lead Conversion Rate
+    total_leads = lead_query.count()
+    converted_leads = lead_query.filter(Lead.status == LeadStatus.CONVERTED).count()
+    conversion_rate = round((converted_leads / total_leads * 100), 2) if total_leads > 0 else 0.0
+
+    # Win / Loss Rate
+    total_opps = opp_query.count()
+    won_opps = opp_query.filter(Opportunity.stage == OpportunityStage.CLOSED_WON).count()
+    lost_opps = opp_query.filter(Opportunity.stage == OpportunityStage.CLOSED_LOST).count()
+    
+    win_rate = round((won_opps / total_opps * 100), 2) if total_opps > 0 else 0.0
+    lost_rate = round((lost_opps / total_opps * 100), 2) if total_opps > 0 else 0.0
+
+    return {
+        "conversion_rate": conversion_rate,
+        "win_rate": win_rate,
+        "lost_rate": lost_rate
+    }
+
+
+
+@router.get("/reports/monthly-leads", response_model=List[MonthlyLeadChart])
+def get_monthly_leads(
+    current_user: User = Depends(require_permission("leads:read")),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import func
+    
+    query = db.query(Lead).filter(Lead.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            query = query.filter(Lead.owner_id == current_user.id)
+            
+    # Group by YYYY-MM
+    results = (
+        db.query(
+            func.to_char(Lead.created_at, 'YYYY-MM').label("month"),
+            func.count(Lead.id).label("count")
+        )
+        .filter(Lead.is_deleted == False)
+    )
+    
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Lead, 'owner_id'):
+            results = results.filter(Lead.owner_id == current_user.id)
+            
+    results = results.group_by("month").order_by("month").all()
+    
+    return [{"month": r.month, "count": r.count} for r in results]
+
+
+@router.get("/reports/revenue", response_model=List[RevenueChart])
+def get_revenue_report(
+    current_user: User = Depends(require_permission("opportunities:read")),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import func
+    
+    # Group by YYYY-MM of close_date
+    results = (
+        db.query(
+            func.to_char(Opportunity.close_date, 'YYYY-MM').label("month"),
+            func.sum(Opportunity.amount).label("revenue")
+        )
+        .filter(Opportunity.is_deleted == False)
+    )
+    
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Opportunity, 'assigned_to_id'):
+            results = results.filter(Opportunity.assigned_to_id == current_user.id)
+            
+    results = results.group_by("month").order_by("month").all()
+    
+    return [{"month": r.month, "revenue": float(r.revenue or 0)} for r in results]
+
+
+@router.get("/reports/funnel", response_model=List[FunnelChart])
+def get_funnel_report(
+    current_user: User = Depends(require_permission("opportunities:read")),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import func
+    
+    results = (
+        db.query(
+            Opportunity.stage,
+            func.count(Opportunity.id).label("count")
+        )
+        .filter(Opportunity.is_deleted == False)
+    )
+    
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Opportunity, 'assigned_to_id'):
+            results = results.filter(Opportunity.assigned_to_id == current_user.id)
+            
+    results = results.group_by(Opportunity.stage).all()
+    
+    return [{"stage": r.stage.value if hasattr(r.stage, 'value') else str(r.stage), "count": r.count} for r in results]
+
+
+
+@router.get("/audit-logs", response_model=List[AuditLogRead])
+def get_audit_logs(
+    current_user: User = Depends(require_permission("accounts:read")), # Must have basic CRM access
+    db: Session = Depends(get_db),
+):
+    # Only show logs related to the user if they are a sales executive, otherwise all
+    query = db.query(AuditLog)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        query = query.filter(AuditLog.user_id == current_user.id)
+        
+    logs = query.order_by(AuditLog.created_at.desc()).limit(100).all()
+    return logs
 
 # Users
 @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
