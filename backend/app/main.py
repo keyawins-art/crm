@@ -22,7 +22,29 @@ from app.api.knowledge_base import router as kb_router
 from app.api.sales_process import router as sales_process_router
 from app.api.tickets import router as tickets_router
 
-app = FastAPI(title="Enterprise CRM API")
+description = """
+**CRM Backend API** provides a complete suite of endpoints to manage the sales lifecycle.
+
+## Features
+* **Authentication**: JWT-based login and registration.
+* **Core CRM**: Leads, Accounts, Contacts, Opportunities.
+* **Sales Process**: Quotations, Sales Orders, Invoices, Payments.
+* **Support**: Ticketing system and Knowledge Base.
+* **Analytics**: Real-time KPI dashboard and charts.
+"""
+
+app = FastAPI(
+    title="NextGen CRM API",
+    description=description,
+    version="1.0.0",
+    contact={
+        "name": "API Support",
+        "email": "support@crm.example.com",
+    },
+    license_info={
+        "name": "Proprietary",
+    }
+)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth_router)

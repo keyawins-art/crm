@@ -78,6 +78,7 @@ def health_check():
 @router.post("/accounts", response_model=AccountRead, status_code=status.HTTP_201_CREATED)
 def create_account(
     payload: AccountCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_permission("accounts:create")),
     db: Session = Depends(get_db),
 ):
@@ -96,8 +97,6 @@ def create_account(
     db.flush()
     log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
-    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
-    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     if obj.email:
         background_tasks.add_task(
@@ -357,6 +356,8 @@ def create_contact(
     current_user: User = Depends(require_permission("contacts:create")),
     db: Session = Depends(get_db),
 ):
+    if payload.email and db.query(Contact).filter(Contact.email == payload.email, Contact.is_deleted == False).first():
+        raise HTTPException(status_code=400, detail="Contact with this email already exists")
     obj = Contact(**payload.model_dump(exclude_none=True))
     
     # Auto-assign ownership if applicable
@@ -618,6 +619,8 @@ def create_lead(
     current_user: User = Depends(require_permission("leads:create")),
     db: Session = Depends(get_db),
 ):
+    if payload.email and db.query(Lead).filter(Lead.email == payload.email, Lead.is_deleted == False).first():
+        raise HTTPException(status_code=400, detail="Lead with this email already exists")
     obj = Lead(**payload.model_dump(exclude_none=True))
     
     # Auto-assign ownership if applicable
@@ -2067,72 +2070,76 @@ def convert_lead(
 
     from sqlalchemy.sql import func
     
-    # 1. Handle Account
-    account_id = payload.account_id
-    if not account_id:
-        acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
-        account = Account(
-            name=acc_name,
-            industry=lead.industry,
-            annual_revenue=lead.annual_revenue,
-            owner_id=lead.assigned_to_id or current_user.id
-        )
-        db.add(account)
-        db.flush()
-        account_id = account.id
-
-    # 2. Handle Contact
-    contact_id = payload.contact_id
-    if not contact_id:
-        contact = Contact(
-            first_name=lead.first_name,
-            last_name=lead.last_name,
-            email=lead.email,
-            phone=lead.phone,
-            mobile=lead.mobile,
-            title=lead.title,
-            account_id=account_id,
-            owner_id=lead.assigned_to_id or current_user.id
-        )
-        db.add(contact)
-        db.flush()
-        contact_id = contact.id
-
-    # 3. Handle Opportunity
-    opportunity_id = None
-    if payload.create_opportunity:
-        opp_name = payload.opportunity_name
-        if not opp_name:
+    try:
+        # 1. Handle Account
+        account_id = payload.account_id
+        if not account_id:
             acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
-            opp_name = f"{acc_name} - Deal"
-            
-        opportunity = Opportunity(
-            name=opp_name,
-            stage=OpportunityStage.PROSPECTING,
-            amount=payload.amount,
-            close_date=date.today() + timedelta(days=30),
-            account_id=account_id,
-            contact_id=contact_id,
-            lead_id=lead.id,
-            assigned_to_id=lead.assigned_to_id or current_user.id,
-            created_by_id=current_user.id
-        )
-        db.add(opportunity)
-        db.flush()
-        opportunity_id = opportunity.id
+            account = Account(
+                name=acc_name,
+                industry=lead.industry,
+                annual_revenue=lead.annual_revenue,
+                owner_id=lead.assigned_to_id or current_user.id
+            )
+            db.add(account)
+            db.flush()
+            account_id = account.id
 
-    # 4. Update Lead
-    lead.is_converted = True
-    lead.status = LeadStatus.CONVERTED
-    lead.converted_at = func.now()
-    lead.converted_account_id = account_id
-    lead.converted_contact_id = contact_id
-    lead.converted_opportunity_id = opportunity_id
-    
-    log_audit(db, current_user, AuditAction.UPDATED, "Lead", lead.id)
-    
-    db.commit()
-    db.refresh(lead)
+        # 2. Handle Contact
+        contact_id = payload.contact_id
+        if not contact_id:
+            contact = Contact(
+                first_name=lead.first_name,
+                last_name=lead.last_name,
+                email=lead.email,
+                phone=lead.phone,
+                mobile=lead.mobile,
+                title=lead.title,
+                account_id=account_id,
+                owner_id=lead.assigned_to_id or current_user.id
+            )
+            db.add(contact)
+            db.flush()
+            contact_id = contact.id
+
+        # 3. Handle Opportunity
+        opportunity_id = None
+        if payload.create_opportunity:
+            opp_name = payload.opportunity_name
+            if not opp_name:
+                acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
+                opp_name = f"{acc_name} - Deal"
+                
+            opportunity = Opportunity(
+                name=opp_name,
+                stage=OpportunityStage.PROSPECTING,
+                amount=payload.amount,
+                close_date=date.today() + timedelta(days=30),
+                account_id=account_id,
+                contact_id=contact_id,
+                lead_id=lead.id,
+                assigned_to_id=lead.assigned_to_id or current_user.id,
+                created_by_id=current_user.id
+            )
+            db.add(opportunity)
+            db.flush()
+            opportunity_id = opportunity.id
+
+        # 4. Update Lead
+        lead.is_converted = True
+        lead.status = LeadStatus.CONVERTED
+        lead.converted_at = func.now()
+        lead.converted_account_id = account_id
+        lead.converted_contact_id = contact_id
+        lead.converted_opportunity_id = opportunity_id
+        
+        log_audit(db, current_user, AuditAction.UPDATED, "Lead", lead.id)
+        
+        db.commit()
+        db.refresh(lead)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Lead conversion failed: {str(e)}")
     
     return LeadConversionResponse(
         lead_id=lead.id,

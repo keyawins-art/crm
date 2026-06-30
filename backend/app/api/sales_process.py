@@ -13,6 +13,8 @@ from app.models.opportunity import Quotation, QuotationStatus
 from app.models.sales_order import SalesOrder, SalesOrderStatus
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.payment import Payment
+from app.models.audit import AuditAction
+from app.api.crm import log_audit
 from app.core.rbac import require_permission
 
 from app.schemas.sales_order import SalesOrderRead
@@ -70,6 +72,7 @@ def convert_quotation_to_order(
     
     db.commit()
     db.refresh(sales_order)
+    log_audit(db, current_user, AuditAction.CREATED, "SalesOrder", sales_order.id)
     return sales_order
 
 
@@ -100,6 +103,7 @@ def convert_order_to_invoice(
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
+    log_audit(db, current_user, AuditAction.CREATED, "Invoice", invoice.id)
     return invoice
 
 
@@ -136,6 +140,7 @@ def pay_invoice(
         
     db.commit()
     db.refresh(invoice)
+    log_audit(db, current_user, AuditAction.CREATED, "Payment", payment.id)
     return invoice
 
 

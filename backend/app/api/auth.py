@@ -18,6 +18,7 @@ from app.core.security import (
 )
 from app.db.database import SessionLocal
 from app.models import Role, User, UserStatus
+from app.models.audit import AuditLog, AuditAction
 from app.schemas.auth import (
     LoginRequest,
     MeResponse,
@@ -84,6 +85,17 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         role_id=default_role.id if default_role else None,
     )
     db.add(user)
+    db.flush()
+    
+    audit = AuditLog(
+        user_id=user.id,
+        action=AuditAction.CREATED,
+        entity_type="User",
+        entity_id=user.id,
+        details=f"{user.first_name} registered"
+    )
+    db.add(audit)
+    
     db.commit()
     db.refresh(user)
 
@@ -98,6 +110,16 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    audit = AuditLog(
+        user_id=user.id,
+        action=AuditAction.VIEWED,
+        entity_type="User",
+        entity_id=user.id,
+        details=f"{user.first_name} logged in"
+    )
+    db.add(audit)
+    db.commit()
 
     return TokenResponse(
         access_token=create_access_token(str(user.id)),

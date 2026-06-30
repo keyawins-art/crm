@@ -1,12 +1,12 @@
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PaymentBase(BaseModel):
     payment_number: str
-    amount: float
+    amount: float = Field(ge=0)
     payment_date: Optional[datetime] = None
     payment_method: Optional[str] = None
     transaction_reference: Optional[str] = None

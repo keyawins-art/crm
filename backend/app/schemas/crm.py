@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Optional, Generic, TypeVar, List
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 T = TypeVar("T")
 
@@ -119,7 +119,7 @@ class LeadUpdate(CRMBase):
 class LeadConvert(CRMBase):
     create_opportunity: bool = True
     opportunity_name: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, ge=0.0)
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
 
@@ -164,7 +164,7 @@ class OpportunityCreate(CRMBase):
     type: Optional[str] = None
     stage: Optional[str] = None
     description: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, ge=0.0)
     close_date: Optional[date] = None
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
@@ -183,7 +183,7 @@ class OpportunityUpdate(CRMBase):
     type: Optional[str] = None
     stage: Optional[str] = None
     description: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, ge=0.0)
     close_date: Optional[date] = None
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None

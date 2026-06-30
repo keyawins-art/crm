@@ -1,14 +1,14 @@
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.sales_order import SalesOrderStatus
 
 
 class SalesOrderBase(BaseModel):
     order_number: str
     status: SalesOrderStatus = SalesOrderStatus.DRAFT
-    total_amount: float
+    total_amount: float = Field(ge=0)
     quotation_id: Optional[UUID] = None
     account_id: Optional[UUID] = None
     opportunity_id: Optional[UUID] = None
