@@ -30,6 +30,9 @@ from .call import Call, CallType
 from .email import EmailLog, EmailStatus
 from .workflow import WorkflowRule, WorkflowAction, WorkflowActionType
 from .integration import IntegrationConfig, IntegrationProvider, IntegrationStatus
+from .sales_order import SalesOrder, SalesOrderStatus
+from .invoice import Invoice, InvoiceStatus
+from .payment import Payment
 
 # Module 7 — System
 from .audit import AuditLog, AuditAction
@@ -74,5 +77,8 @@ __all__ = [
     "Call", "CallType",
     "EmailLog", "EmailStatus",
     "WorkflowRule", "WorkflowAction", "WorkflowActionType",
-    "IntegrationConfig", "IntegrationProvider", "IntegrationStatus"
+    "IntegrationConfig", "IntegrationProvider", "IntegrationStatus",
+    "SalesOrder", "SalesOrderStatus",
+    "Invoice", "InvoiceStatus",
+    "Payment"
 ]

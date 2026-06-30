@@ -32,6 +32,7 @@ class OpportunityType(str, enum.Enum):
 class QuotationStatus(str, enum.Enum):
     DRAFT = "draft"
     SENT = "sent"
+    APPROVED = "approved"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     EXPIRED = "expired"
