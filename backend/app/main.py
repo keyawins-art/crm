@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from app.api.auth import router as auth_router
 from app.api.crm import router as crm_router
@@ -11,6 +13,7 @@ from app.api.reports import router as reports_router
 from app.api.tasks import router as tasks_router
 from app.api.meetings import router as meetings_router
 from app.api.calls import router as calls_router
+from app.api.calendar import router as calendar_router
 
 app = FastAPI(title="Enterprise CRM API")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -24,7 +27,15 @@ app.include_router(reports_router)
 app.include_router(tasks_router)
 app.include_router(meetings_router)
 app.include_router(calls_router)
+app.include_router(calendar_router)
 
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Database integrity error: Invalid related entity ID or duplicate value."}
+    )
 
 @app.get("/")
 def root():
