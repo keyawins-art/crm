@@ -18,6 +18,7 @@ from app.api.emails import router as emails_router
 from app.api.files import router as files_router
 from app.api.workflows import router as workflows_router
 from app.api.integrations import router as integrations_router
+from app.api.knowledge_base import router as kb_router
 from app.api.sales_process import router as sales_process_router
 from app.api.tickets import router as tickets_router
 
@@ -38,6 +39,7 @@ app.include_router(emails_router)
 app.include_router(files_router)
 app.include_router(workflows_router)
 app.include_router(integrations_router)
+app.include_router(kb_router)
 app.include_router(sales_process_router)
 app.include_router(tickets_router)
 

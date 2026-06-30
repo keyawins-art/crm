@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, String, Text, Enum as SAEnum, ForeignKey
+from sqlalchemy import Column, String, Text, Boolean, Enum as SAEnum, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -41,6 +41,24 @@ class Ticket(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     contact = relationship("Contact", lazy="joined")
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], lazy="joined")
     created_by = relationship("User", foreign_keys=[created_by_id], lazy="joined")
+    comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin")
 
     def __repr__(self):
         return f"<Ticket {self.ticket_number} [{self.status}]>"
+
+
+class TicketComment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "ticket_comments"
+
+    content = Column(Text, nullable=False)
+    is_internal = Column(Boolean, default=False, nullable=False)
+
+    ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Relationships
+    ticket = relationship("Ticket", back_populates="comments")
+    author = relationship("User", lazy="joined")
+
+    def __repr__(self):
+        return f"<TicketComment {self.id} on Ticket {self.ticket_id}>"
