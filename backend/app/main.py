@@ -10,6 +10,7 @@ from app.api.documents import router as documents_router
 from app.api.reports import router as reports_router
 from app.api.tasks import router as tasks_router
 from app.api.meetings import router as meetings_router
+from app.api.calls import router as calls_router
 
 app = FastAPI(title="Enterprise CRM API")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -22,6 +23,7 @@ app.include_router(documents_router)
 app.include_router(reports_router)
 app.include_router(tasks_router)
 app.include_router(meetings_router)
+app.include_router(calls_router)
 
 
 @app.get("/")

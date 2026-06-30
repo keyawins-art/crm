@@ -26,6 +26,7 @@ from .activity import TimelineActivity
 from .document import Document
 from .task import Task, TaskPriority, TaskStatus
 from .meeting import Meeting, MeetingStatus
+from .call import Call, CallType
 
 # Module 7 — System
 from .audit import AuditLog, AuditAction
@@ -66,5 +67,6 @@ __all__ = [
     # Activity & Documents
     "TimelineActivity", "Document",
     "Task", "TaskPriority", "TaskStatus",
-    "Meeting", "MeetingStatus"
+    "Meeting", "MeetingStatus",
+    "Call", "CallType"
 ]
