@@ -29,6 +29,7 @@ from .meeting import Meeting, MeetingStatus
 from .call import Call, CallType
 from .email import EmailLog, EmailStatus
 from .workflow import WorkflowRule, WorkflowAction, WorkflowActionType
+from .integration import IntegrationConfig, IntegrationProvider, IntegrationStatus
 
 # Module 7 — System
 from .audit import AuditLog, AuditAction
@@ -72,5 +73,6 @@ __all__ = [
     "Meeting", "MeetingStatus",
     "Call", "CallType",
     "EmailLog", "EmailStatus",
-    "WorkflowRule", "WorkflowAction", "WorkflowActionType"
+    "WorkflowRule", "WorkflowAction", "WorkflowActionType",
+    "IntegrationConfig", "IntegrationProvider", "IntegrationStatus"
 ]
