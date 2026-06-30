@@ -1843,10 +1843,14 @@ def add_lead_activity(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
+    act_type = payload.type.lower().replace("-", "_").replace(" ", "_")
+    if act_type == "phone_call":
+        act_type = "call"
+        
     activity = LeadActivity(
         lead_id=id,
         user_id=current_user.id,
-        type=payload.type.lower(),
+        type=act_type,
         subject=payload.subject,
         outcome=payload.outcome,
         description=payload.description,
@@ -1859,7 +1863,7 @@ def add_lead_activity(
     timeline_activity = TimelineActivity(
         entity_type="leads",
         entity_id=id,
-        activity_type=payload.type.lower(),
+        activity_type=act_type,
         content=f"{payload.type}: {payload.subject}",
         activity_date=payload.date,
         user_id=current_user.id
