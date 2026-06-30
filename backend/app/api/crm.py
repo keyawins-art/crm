@@ -1945,14 +1945,28 @@ def get_dashboard(
             opp_query = opp_query.filter(Opportunity.assigned_to_id == current_user.id)
     
     opportunities_count = opp_query.count()
-    revenue = db.query(func.sum(Opportunity.amount)).filter(Opportunity.is_deleted == False).scalar() or 0.0
+
+    # 5. Products Count
+    products_count = db.query(Product).filter(Product.is_deleted == False).count()
+
+    # 6. Quotations Count
+    quot_query = db.query(Quotation).filter(Quotation.is_deleted == False)
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Quotation, 'created_by_id'):
+            quot_query = quot_query.filter(Quotation.created_by_id == current_user.id)
+    quotations_count = quot_query.count()
+
+    # 7. Users Count
+    users_count = db.query(User).filter(User.is_active == True).count()
 
     return {
         "accounts": accounts_count,
         "contacts": contacts_count,
         "leads": leads_count,
         "opportunities": opportunities_count,
-        "revenue": float(revenue)
+        "products": products_count,
+        "quotations": quotations_count,
+        "users": users_count
     }
 
 

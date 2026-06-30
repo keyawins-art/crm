@@ -283,7 +283,9 @@ class DashboardRead(BaseModel):
     contacts: int
     leads: int
     opportunities: int
-    revenue: float
+    products: int
+    quotations: int
+    users: int
 
 
 class KPIRead(BaseModel):
