@@ -1,9 +1,10 @@
 import io
+import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from num2words import num2words
 
 def get_amount_in_words(num):
@@ -22,7 +23,7 @@ def generate_quotation_pdf(quotation):
         pagesize=A4, 
         rightMargin=10*mm, 
         leftMargin=10*mm, 
-        topMargin=10*mm, 
+        topMargin=15*mm, 
         bottomMargin=10*mm
     )
 
@@ -98,14 +99,38 @@ Phone : {c_phone}"""
     logo_placeholder = f"""<font color="#005A9C" name="Helvetica-Bold" size="14">{logo_text}</font><br/>
 <font color="#555555" size="7">TECHNOLOGY PVT LTD</font>"""
 
+    # Choose logo element
+    logo_file = settings.logo_url if settings and settings.logo_url else None
+    if logo_file and os.path.exists(logo_file):
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(logo_file) as img:
+                orig_w, orig_h = img.size
+            # Max bounding box for the logo (larger size)
+            max_w = 52 * mm
+            max_h = 19 * mm
+            # Scale proportionally to fit inside max_w x max_h (contain)
+            scale = min(max_w / orig_w, max_h / orig_h)
+            target_width = orig_w * scale
+            target_height = orig_h * scale
+            logo_element = Image(logo_file, width=target_width, height=target_height, hAlign='RIGHT')
+        except Exception as e:
+            logo_element = Image(logo_file, width=52*mm, height=18*mm, hAlign='RIGHT')
+    else:
+        logo_element = Paragraph(logo_placeholder, ParagraphStyle(name='R', alignment=2))
+
     # We use a table for the header to align left (info) and right (logo)
     header_table_data = [
-        [Paragraph(company_info, style_normal), Paragraph(logo_placeholder, ParagraphStyle(name='R', alignment=2))]
+        [Paragraph(company_info, style_normal), logo_element]
     ]
     header_table = Table(header_table_data, colWidths=[120*mm, 70*mm])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
     
     elements.append(header_table)
@@ -230,7 +255,7 @@ Phone :- {client_phone}"""
         total_igst = 54000
         total_amount = 354000
 
-    items_table = Table(items_data, colWidths=[10*mm, 50*mm, 20*mm, 10*mm, 10*mm, 20*mm, 20*mm, 15*mm, 15*mm, 20*mm])
+    items_table = Table(items_data, colWidths=[8*mm, 48*mm, 18*mm, 10*mm, 10*mm, 22*mm, 22*mm, 12*mm, 17*mm, 23*mm])
     
     # Style for items table
     items_style = TableStyle([
@@ -239,6 +264,8 @@ Phone :- {client_phone}"""
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 8),
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         # Right align numeric columns

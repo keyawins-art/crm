@@ -237,6 +237,7 @@ class QuotationRead(QuotationCreate):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     items: Optional[List[QuotationItemRead]] = []
+    account: Optional[AccountRead] = None
 
 
 class QuotationUpdate(CRMBase):

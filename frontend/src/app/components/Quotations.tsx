@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, FileText, Send, Download } from "lucide-react";
+import { Search, Plus, MoreHorizontal, FileText, Send, Download, Eye } from "lucide-react";
 import { quotationsAPI, salesAPI, accountsAPI, productsAPI } from "../../lib/api";
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -18,6 +18,8 @@ export function Quotations() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [pdfViewUrl, setPdfViewUrl] = useState<string | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   
   const getInitialFormState = () => ({
     quote_number: `QT-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
@@ -179,13 +181,27 @@ export function Quotations() {
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Quotation_${quoteNumber}.pdf`);
+      link.setAttribute('download', `${quoteNumber}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err) {
-      console.error("Failed to download PDF", err);
+      console.error("PDF download failed:", err);
       alert("Failed to download PDF");
+    }
+  };
+
+  const handleViewQuotation = async (id: string) => {
+    try {
+      setLoadingDetails(true);
+      const res = await quotationsAPI.downloadPdf(id);
+      const fileURL = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      setPdfViewUrl(fileURL);
+    } catch (err) {
+      console.error("Failed to load PDF preview:", err);
+      alert("Failed to load PDF preview.");
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -254,6 +270,9 @@ export function Quotations() {
                       {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right">
+                      <button onClick={() => handleViewQuotation(q.id)} title="View Details" className="text-primary hover:text-primary/80 mr-2 transition-colors">
+                        <Eye size={14} />
+                      </button>
                       <button onClick={() => handleDownloadPDF(q.id, q.quote_number)} title="Download PDF" className="text-blue-500 hover:text-blue-400 mr-2 transition-colors">
                         <Download size={14} />
                       </button>
@@ -280,8 +299,8 @@ export function Quotations() {
           <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Create Performa Invoice / Quotation</h3>
-                <p className="text-xs text-muted-foreground">Fill in all details to generate a formatted PDF matching Keya Fusion standards.</p>
+                <h3 className="text-base font-semibold text-foreground">Create Quotation</h3>
+                <p className="text-xs text-muted-foreground">Fill in all details to generate a formatted PDF Quotation matching Keya Fusion standards.</p>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground text-sm transition-colors">✕</button>
             </div>
@@ -419,6 +438,36 @@ export function Quotations() {
                 <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create &amp; Save Quotation</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Details Spinner Overlay */}
+      {loadingDetails && (
+        <div className="fixed inset-0 bg-background/50 backdrop-blur-xs z-50 flex items-center justify-center">
+          <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* View Quotation Details Modal (PDF preview) */}
+      {pdfViewUrl && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Quotation PDF Preview</h3>
+                <p className="text-xs text-muted-foreground">Print or download the quotation document directly using the PDF toolbar.</p>
+              </div>
+              <button onClick={() => { URL.revokeObjectURL(pdfViewUrl); setPdfViewUrl(null); }} className="text-muted-foreground hover:text-foreground text-sm transition-colors">✕</button>
+            </div>
+
+            <div className="flex-1 p-2 bg-secondary/20">
+              <iframe src={pdfViewUrl} className="w-full h-[78vh] rounded border border-border bg-muted" />
+            </div>
+            
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/10">
+              <button onClick={() => { URL.revokeObjectURL(pdfViewUrl); setPdfViewUrl(null); }} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Close</button>
+            </div>
           </div>
         </div>
       )}

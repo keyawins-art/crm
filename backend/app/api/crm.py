@@ -7,7 +7,7 @@ import math
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, HTTPException, Query, status, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -2457,6 +2457,41 @@ def update_company_settings(
     for key, value in update_data.items():
         setattr(settings, key, value)
         
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+
+@router.post("/company-settings/logo")
+def upload_company_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permission("users:update")),
+    db: Session = Depends(get_db),
+):
+    import os
+    from uuid import uuid4
+    import shutil
+    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded.")
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"]:
+        raise HTTPException(status_code=400, detail=f"Only images (.jpg, .jpeg, .png, .gif, .webp, .svg) are allowed. Got: '{file_ext}'")
+        
+    os.makedirs("uploads", exist_ok=True)
+    unique_filename = f"logo_{uuid4().hex}{file_ext}"
+    file_path = os.path.join("uploads", unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    settings = db.query(CompanySettings).first()
+    if not settings:
+        settings = CompanySettings(company_name="Keya Fusion Technology Pvt Ltd")
+        db.add(settings)
+        db.flush()
+        
+    settings.logo_url = file_path
     db.commit()
     db.refresh(settings)
     return settings

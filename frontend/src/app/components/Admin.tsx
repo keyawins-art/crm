@@ -120,6 +120,28 @@ export function Admin() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    try {
+      setIsSavingSettings(true);
+      const res = await companySettingsAPI.uploadLogo(file);
+      setCompanySettings(res.data);
+      alert("Logo uploaded successfully!");
+    } catch (err) {
+      console.error("Logo upload failed:", err);
+      alert("Failed to upload logo.");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const getLogoUrl = (url: string) => {
+    if (!url) return "";
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    return `http://${host}:8000/${url}`;
+  };
+
   return (
     <div className="flex flex-col h-full bg-background" style={{ fontFamily: "var(--font-sans)" }}>
       {/* Header */}
@@ -254,6 +276,23 @@ export function Admin() {
             </div>
 
             <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
+              {/* Logo Section */}
+              <div className="flex items-center gap-6 pb-4 border-b border-border">
+                {companySettings.logo_url ? (
+                  <img src={getLogoUrl(companySettings.logo_url)} alt="Company Logo" className="w-16 h-16 object-contain rounded border border-border bg-white" />
+                ) : (
+                  <div className="w-16 h-16 rounded border border-dashed border-border flex items-center justify-center text-muted-foreground text-[10px]">No Logo</div>
+                )}
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground">Company Logo</h4>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Upload a square or wide brand logo image (PNG, JPG).</p>
+                  <label className="mt-2 inline-block px-2.5 py-1 bg-secondary text-foreground rounded text-[10px] font-medium hover:bg-secondary/80 cursor-pointer transition-colors border border-border">
+                    Choose Logo
+                    <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
+                  </label>
+                </div>
+              </div>
+
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Company Name</label>
                 <input required value={companySettings.company_name} onChange={e => setCompanySettings({...companySettings, company_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" />

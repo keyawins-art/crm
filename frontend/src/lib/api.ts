@@ -234,6 +234,13 @@ export const integrationsAPI = {
 export const companySettingsAPI = {
   get: () => api.get("/crm/company-settings"),
   update: (data: any) => api.put("/crm/company-settings", data),
+  uploadLogo: (file: any) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post("/crm/company-settings/logo", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 };
 
 // Notifications
