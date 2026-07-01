@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { opportunitiesAPI } from "../../lib/api";
 
-type Stage = "Prospecting" | "Qualification" | "Proposal" | "Negotiation" | "Closed Won" | "Closed Lost";
+type Stage = "prospecting" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
 
 type Deal = {
   id: string;
@@ -21,15 +21,15 @@ type Deal = {
 };
 
 const stageConfig: Record<string, { color: string; bg: string; border: string }> = {
-  "Prospecting":  { color: "#6b7694", bg: "#6b769410", border: "#6b769430" },
-  "Qualification":{ color: "#4f7eff", bg: "#4f7eff10", border: "#4f7eff30" },
-  "Proposal":     { color: "#a78bfa", bg: "#a78bfa10", border: "#a78bfa30" },
-  "Negotiation":  { color: "#f59e0b", bg: "#f59e0b10", border: "#f59e0b30" },
-  "Closed Won":   { color: "#00d4aa", bg: "#00d4aa10", border: "#00d4aa30" },
-  "Closed Lost":  { color: "#f43f5e", bg: "#f43f5e10", border: "#f43f5e30" },
+  "prospecting":  { color: "#6b7694", bg: "#6b769410", border: "#6b769430" },
+  "qualification":{ color: "#4f7eff", bg: "#4f7eff10", border: "#4f7eff30" },
+  "proposal":     { color: "#a78bfa", bg: "#a78bfa10", border: "#a78bfa30" },
+  "negotiation":  { color: "#f59e0b", bg: "#f59e0b10", border: "#f59e0b30" },
+  "closed_won":   { color: "#00d4aa", bg: "#00d4aa10", border: "#00d4aa30" },
+  "closed_lost":  { color: "#f43f5e", bg: "#f43f5e10", border: "#f43f5e30" },
 };
 
-const stages: Stage[] = ["Prospecting", "Qualification", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
+const stages: Stage[] = ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
 
 const fmt = (v: number | null | undefined) => {
   if (v == null) return "₹0";
@@ -41,6 +41,15 @@ export function Deals() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  
+  // Add Deal Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    name: "",
+    amount: "",
+    stage: "prospecting",
+    close_date: new Date().toISOString().split('T')[0],
+  });
 
   useEffect(() => {
     loadDeals();
@@ -58,6 +67,22 @@ export function Deals() {
     }
   };
 
+  const handleAddDeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await opportunitiesAPI.create({
+        ...addFormData,
+        amount: parseFloat(addFormData.amount) || 0,
+      });
+      setIsAddModalOpen(false);
+      setAddFormData({ name: "", amount: "", stage: "prospecting", close_date: new Date().toISOString().split('T')[0] });
+      loadDeals();
+    } catch (err) {
+      console.error("Failed to create deal:", err);
+      alert("Failed to create deal. Please try again.");
+    }
+  };
+
   const filtered = deals.filter(d => {
     const q = search.toLowerCase();
     return !q || d.name?.toLowerCase().includes(q);
@@ -66,14 +91,14 @@ export function Deals() {
   const byStage = (s: string) => filtered.filter(d => d.stage === s);
 
   const totalPipeline = deals
-    .filter(d => d.stage !== "Closed Won" && d.stage !== "Closed Lost")
+    .filter(d => d.stage !== "closed_won" && d.stage !== "closed_lost")
     .reduce((sum, d) => sum + (d.amount || 0), 0);
 
   const weightedPipeline = deals
-    .filter(d => d.stage !== "Closed Lost")
+    .filter(d => d.stage !== "closed_lost")
     .reduce((sum, d) => sum + ((d.amount || 0) * (d.probability || 0)) / 100, 0);
 
-  const closedWon = deals.filter(d => d.stage === "Closed Won").reduce((sum, d) => sum + (d.amount || 0), 0);
+  const closedWon = deals.filter(d => d.stage === "closed_won").reduce((sum, d) => sum + (d.amount || 0), 0);
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: "var(--font-sans)" }}>
@@ -96,7 +121,7 @@ export function Deals() {
           <span className="text-muted-foreground">Weighted: <span style={{ color: "#4f7eff" }} className="font-semibold">{fmt(weightedPipeline)}</span></span>
           <span className="text-muted-foreground">Won: <span style={{ color: "#00d4aa" }} className="font-semibold">{fmt(closedWon)}</span></span>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
           <Plus size={12} /> New Deal
         </button>
       </div>
@@ -111,7 +136,7 @@ export function Deals() {
           <div className="flex gap-3 p-5 h-full min-w-max">
             {stages.map(stage => {
               const stageDeals = byStage(stage);
-              const conf = stageConfig[stage] || stageConfig["Prospecting"];
+              const conf = stageConfig[stage] || stageConfig["prospecting"];
               const stageTotal = stageDeals.reduce((s, d) => s + (d.amount || 0), 0);
 
               return (
@@ -190,7 +215,7 @@ export function Deals() {
                 <span className="text-xs font-mono font-bold text-foreground">{fmt(selectedDeal.amount)}</span>
                 <span
                   className="text-[10px] font-mono px-2 py-0.5 rounded capitalize"
-                  style={{ color: (stageConfig[selectedDeal.stage] || stageConfig["Prospecting"]).color, background: (stageConfig[selectedDeal.stage] || stageConfig["Prospecting"]).bg }}
+                  style={{ color: (stageConfig[selectedDeal.stage] || stageConfig["prospecting"]).color, background: (stageConfig[selectedDeal.stage] || stageConfig["prospecting"]).bg }}
                 >
                   {selectedDeal.stage.replace("_", " ")}
                 </span>
@@ -207,6 +232,48 @@ export function Deals() {
               </button>
               <button onClick={() => setSelectedDeal(null)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5">✕</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Deal Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">New Deal</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAddDeal} className="p-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Deal Name</label>
+                <input required value={addFormData.name} onChange={e => setAddFormData({...addFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="e.g. Acme Corp Enterprise License" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Amount (₹)</label>
+                <input required type="number" min="0" step="0.01" value={addFormData.amount} onChange={e => setAddFormData({...addFormData, amount: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="0.00" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Stage</label>
+                <select value={addFormData.stage} onChange={e => setAddFormData({...addFormData, stage: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                  {stages.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Close Date</label>
+                <input required type="date" value={addFormData.close_date} onChange={e => setAddFormData({...addFormData, close_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" />
+              </div>
+              <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                  Create Deal
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

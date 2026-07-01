@@ -5,15 +5,15 @@ import {
 } from "lucide-react";
 import { leadsAPI } from "../../lib/api";
 
-type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "converted" | "lost";
+type LeadStatus = "new" | "assigned" | "in_process" | "converted" | "recycled" | "dead";
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
   new:        { color: "#4f7eff", bg: "#4f7eff18", label: "New" },
-  contacted:  { color: "#a78bfa", bg: "#a78bfa18", label: "Contacted" },
-  qualified:  { color: "#f59e0b", bg: "#f59e0b18", label: "Qualified" },
-  proposal:   { color: "#00d4aa", bg: "#00d4aa18", label: "Proposal" },
+  assigned:   { color: "#a78bfa", bg: "#a78bfa18", label: "Assigned" },
+  in_process: { color: "#f59e0b", bg: "#f59e0b18", label: "In Process" },
   converted:  { color: "#10b981", bg: "#10b98118", label: "Converted" },
-  lost:       { color: "#f43f5e", bg: "#f43f5e18", label: "Lost" },
+  recycled:   { color: "#6b7694", bg: "#6b769418", label: "Recycled" },
+  dead:       { color: "#f43f5e", bg: "#f43f5e18", label: "Dead" },
 };
 
 export function Leads() {
@@ -24,7 +24,17 @@ export function Leads() {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("All");
 
-  const statuses = ["All", "new", "contacted", "qualified", "proposal", "converted", "lost"];
+  const statuses = ["All", "new", "assigned", "in_process", "converted", "recycled", "dead"];
+
+  // Add Lead Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    company: "",
+    status: "new",
+  });
 
   useEffect(() => {
     loadLeads();
@@ -40,6 +50,21 @@ export function Leads() {
       console.error("Failed to load leads:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await leadsAPI.create({
+        ...addFormData,
+      });
+      setIsAddModalOpen(false);
+      setAddFormData({ first_name: "", last_name: "", email: "", company: "", status: "new" });
+      loadLeads();
+    } catch (err) {
+      console.error("Failed to create lead:", err);
+      alert("Failed to create lead. Please try again.");
     }
   };
 
@@ -78,7 +103,7 @@ export function Leads() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+          <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
             <Plus size={12} /> Add Lead
           </button>
         </div>
@@ -157,6 +182,54 @@ export function Leads() {
           </div>
         )}
       </div>
+
+      {/* Add Lead Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">New Lead</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAddLead} className="p-4 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">First Name</label>
+                  <input required value={addFormData.first_name} onChange={e => setAddFormData({...addFormData, first_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="John" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Last Name</label>
+                  <input required value={addFormData.last_name} onChange={e => setAddFormData({...addFormData, last_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Doe" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Email Address</label>
+                <input required type="email" value={addFormData.email} onChange={e => setAddFormData({...addFormData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="john@example.com" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company</label>
+                <input required value={addFormData.company} onChange={e => setAddFormData({...addFormData, company: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                <select value={addFormData.status} onChange={e => setAddFormData({...addFormData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                  {statuses.filter(s => s !== "All").map(s => <option key={s} value={s}>{statusConfig[s]?.label || s}</option>)}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                  Create Lead
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
