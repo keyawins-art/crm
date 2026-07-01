@@ -98,7 +98,7 @@ export function Accounts() {
       loadAccounts();
     } catch (err) {
       console.error(err);
-      alert("Failed to add account");
+      alert("Failed to add customer");
     }
   };
 
@@ -109,13 +109,13 @@ export function Accounts() {
       <div className="flex items-center gap-3 px-6 py-4 border-b border-border shrink-0">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accounts…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…"
             className="pl-8 pr-3 py-1.5 text-xs bg-white/5 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors w-64" />
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[11px] font-mono text-muted-foreground">{total} accounts</span>
+          <span className="text-[11px] font-mono text-muted-foreground">{total} customers</span>
           <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
-            <Plus size={12} /> Add Account
+            <Plus size={12} /> Add Customer
           </button>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function Accounts() {
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-card border-b border-border">
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Account</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Revenue</th>
@@ -184,7 +184,7 @@ export function Accounts() {
         {!loading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Building2 size={32} className="text-muted-foreground/30 mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">No accounts found</p>
+            <p className="text-sm font-medium text-muted-foreground">No customers found</p>
           </div>
         )}
       </div>
@@ -193,7 +193,7 @@ export function Accounts() {
       {selectedAccount && (
         <div className="w-80 border-l border-border bg-card flex flex-col shrink-0 animate-in slide-in-from-right-8 duration-200">
           <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
-            <h3 className="font-semibold text-foreground text-sm">Account Details</h3>
+            <h3 className="font-semibold text-foreground text-sm">Customer Details</h3>
             <button onClick={() => setSelectedAccount(null)} className="text-muted-foreground hover:text-foreground">✕</button>
           </div>
           <div className="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
@@ -253,12 +253,12 @@ export function Accounts() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-              <h3 className="text-sm font-semibold text-foreground">New Account</h3>
+              <h3 className="text-sm font-semibold text-foreground">New Customer</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">✕</button>
             </div>
             <form onSubmit={handleAddAccount} className="p-4 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Account Name</label>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Name</label>
                 <input required value={addFormData.name} onChange={e => setAddFormData({...addFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -292,7 +292,7 @@ export function Accounts() {
               
               <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
-                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create Account</button>
+                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create Customer</button>
               </div>
             </form>
           </div>
