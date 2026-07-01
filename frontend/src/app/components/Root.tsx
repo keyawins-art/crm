@@ -4,7 +4,7 @@ import {
   Bell, Search, Settings, ChevronRight, Zap, LogOut,
   MessageSquare, FileText, Shield, HelpCircle, Menu, X,
   UserPlus, Building2, LifeBuoy, Target, ShoppingCart,
-  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug
+  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug, Package
 } from "lucide-react";
 import { useState } from "react";
 import { logout, getUser } from "../../lib/auth";
@@ -26,6 +26,7 @@ const navItems = [
   { to: "/documents", icon: Folder, label: "Documents" },
   { to: "/workflows", icon: GitMerge, label: "Workflows" },
   { to: "/tickets", icon: LifeBuoy, label: "Tickets" },
+  { to: "/products", icon: Package, label: "Product Catalog" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 

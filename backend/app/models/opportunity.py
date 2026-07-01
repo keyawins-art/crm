@@ -135,6 +135,10 @@ class Quotation(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     delivery_terms = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
 
+    # Address Overrides
+    billing_address = Column(Text, nullable=True)
+    shipping_address = Column(Text, nullable=True)
+
     # Foreign Keys
     opportunity_id = Column(UUID(as_uuid=True), ForeignKey("opportunities.id", ondelete="SET NULL"), nullable=True, index=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)

@@ -28,6 +28,8 @@ class AccountCreate(CRMBase):
     description: Optional[str] = None
     annual_revenue: Optional[float] = None
     employee_count: Optional[int] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
 
 
 class AccountRead(AccountCreate):
@@ -46,6 +48,8 @@ class AccountUpdate(CRMBase):
     description: Optional[str] = None
     annual_revenue: Optional[float] = None
     employee_count: Optional[int] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
 
 
 class ContactCreate(CRMBase):
@@ -191,6 +195,18 @@ class OpportunityUpdate(CRMBase):
     assigned_to_id: Optional[UUID] = None
 
 
+class QuotationItemCreate(CRMBase):
+    product_id: UUID
+    description: Optional[str] = None
+    quantity: float = 1
+    unit_price: float = 0.0
+    discount_percent: float = 0.0
+    tax_percent: float = 0.0
+
+class QuotationItemRead(QuotationItemCreate):
+    id: UUID
+    total_price: float
+
 class QuotationCreate(CRMBase):
     quote_number: str
     subject: str
@@ -199,13 +215,28 @@ class QuotationCreate(CRMBase):
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     created_by_id: Optional[UUID] = None
-    grand_total: Optional[float] = None
-
+    
+    # Financials (calculated dynamically on backend if items provided)
+    subtotal: Optional[float] = 0
+    tax_amount: Optional[float] = 0
+    grand_total: Optional[float] = 0
+    
+    # Terms
+    terms_and_conditions: Optional[str] = None
+    payment_terms: Optional[str] = None
+    
+    # Address Overrides
+    billing_address: Optional[str] = None
+    shipping_address: Optional[str] = None
+    
+    # Line items
+    items: Optional[List[QuotationItemCreate]] = []
 
 class QuotationRead(QuotationCreate):
     id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    items: Optional[List[QuotationItemRead]] = []
 
 
 class QuotationUpdate(CRMBase):

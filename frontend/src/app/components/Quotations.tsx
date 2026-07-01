@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, FileText, Send } from "lucide-react";
-import { quotationsAPI, salesAPI } from "../../lib/api";
+import { Search, Plus, MoreHorizontal, FileText, Send, Download } from "lucide-react";
+import { quotationsAPI, salesAPI, accountsAPI, productsAPI } from "../../lib/api";
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
   draft:    { color: "#6b7694", bg: "#6b769418" },
@@ -15,9 +15,71 @@ export function Quotations() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  const getInitialFormState = () => ({
+    quote_number: `QT-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
+    subject: "",
+    status: "draft",
+    account_id: "",
+    billing_address: "",
+    shipping_address: "",
+    terms_and_conditions: `* 1 Year Warranty
+* 50% advance payment for order conformation & 50% before Dispatch
+* Delivery Charges at actual
+* Onsite Installation, Demo and Training (India) - Ensuring you fully understand the machine's capabilities
+* Please note that the machine will be supplied with 2 Nos. of 20 kg moulds and 2 Nos. of 25 kg moulds included in our offer`,
+    items: [
+      { product_id: "", description: "", quantity: 1, unit_price: 0, tax_percent: 18 }
+    ]
+  });
+
+  const [addFormData, setAddFormData] = useState(getInitialFormState());
+
+  const handleAccountChange = (accountId: string) => {
+    const selectedAcc = accounts.find(a => a.id === accountId);
+    let addr = "";
+    if (selectedAcc) {
+      const parts = [];
+      if (selectedAcc.billing_street) parts.push(selectedAcc.billing_street);
+      if (selectedAcc.billing_city) parts.push(selectedAcc.billing_city);
+      if (selectedAcc.billing_state) parts.push(selectedAcc.billing_state);
+      if (selectedAcc.billing_postal_code) parts.push(selectedAcc.billing_postal_code);
+      addr = parts.join(", ");
+    }
+    setAddFormData({
+      ...addFormData,
+      account_id: accountId,
+      billing_address: addr,
+      shipping_address: addr,
+    });
+  };
+
   useEffect(() => {
     loadQuotations();
+    loadAccounts();
+    loadProducts();
   }, []);
+
+  const loadAccounts = async () => {
+    try {
+      const res = await accountsAPI.list(1, 100);
+      setAccounts(res.data.items || []);
+    } catch (err) {
+      console.error("Failed to load accounts", err);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await productsAPI.list(1, 100);
+      setProducts(res.data.items || []);
+    } catch (err) {
+      console.error("Failed to load products", err);
+    }
+  };
 
   const loadQuotations = async () => {
     try {
@@ -44,6 +106,89 @@ export function Quotations() {
     }
   };
 
+  const handleAddQuotation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = { ...addFormData };
+      if (!payload.account_id) delete (payload as any).account_id;
+      // Filter out invalid items
+      payload.items = payload.items.filter(item => item.product_id !== "");
+      
+      await quotationsAPI.create(payload);
+      setIsAddModalOpen(false);
+      setAddFormData(getInitialFormState());
+      loadQuotations();
+    } catch (err) {
+      console.error("Failed to create quotation:", err);
+      alert("Failed to create quotation");
+    }
+  };
+
+  const handleAddRow = () => {
+    setAddFormData({
+      ...addFormData,
+      items: [...addFormData.items, { product_id: "", description: "", quantity: 1, unit_price: 0, tax_percent: 18 }]
+    });
+  };
+
+  const handleRemoveRow = (index: number) => {
+    const newItems = [...addFormData.items];
+    newItems.splice(index, 1);
+    setAddFormData({ ...addFormData, items: newItems });
+  };
+
+  const handleItemChange = (index: number, field: string, value: any) => {
+    const newItems = [...addFormData.items];
+    
+    if (field === "product_id") {
+      const selectedProd = products.find(p => p.id === value);
+      newItems[index] = {
+        ...newItems[index],
+        product_id: value,
+        unit_price: selectedProd ? (selectedProd.list_price || 0) : 0,
+        description: selectedProd ? (selectedProd.description || "") : ""
+      };
+    } else {
+      newItems[index] = {
+        ...newItems[index],
+        [field]: value
+      };
+    }
+    
+    setAddFormData({ ...addFormData, items: newItems });
+  };
+
+  // Calculate live totals for the invoice preview
+  const calculateTotals = () => {
+    let subtotal = 0;
+    let tax = 0;
+    addFormData.items.forEach(item => {
+      if (!item.product_id) return;
+      const amount = (item.quantity || 0) * (item.unit_price || 0);
+      subtotal += amount;
+      tax += amount * ((item.tax_percent || 0) / 100);
+    });
+    return { subtotal, tax, grandTotal: subtotal + tax };
+  };
+
+  const { subtotal: liveSubtotal, tax: liveTax, grandTotal: liveGrandTotal } = calculateTotals();
+
+  const handleDownloadPDF = async (id: string, quoteNumber: string) => {
+    try {
+      const res = await quotationsAPI.downloadPdf(id);
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Quotation_${quoteNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to download PDF", err);
+      alert("Failed to download PDF");
+    }
+  };
+
   const filtered = quotations.filter(q => {
     const term = search.toLowerCase();
     return !term || q.quote_number?.toLowerCase().includes(term) || q.subject?.toLowerCase().includes(term);
@@ -61,7 +206,7 @@ export function Quotations() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] font-mono text-muted-foreground mr-3">{total} quotations</span>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors">
+          <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors">
             <Plus size={14} /> New Quotation
           </button>
         </div>
@@ -109,6 +254,9 @@ export function Quotations() {
                       {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right">
+                      <button onClick={() => handleDownloadPDF(q.id, q.quote_number)} title="Download PDF" className="text-blue-500 hover:text-blue-400 mr-2 transition-colors">
+                        <Download size={14} />
+                      </button>
                       {q.status === 'accepted' ? (
                         <button onClick={() => handleConvertToOrder(q.id)} title="Convert to Order" className="text-emerald-500 hover:text-emerald-400 mr-2">
                           <Send size={14} />
@@ -125,6 +273,155 @@ export function Quotations() {
           </table>
         )}
       </div>
+
+      {/* Add Quotation / Invoice Builder Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Create Performa Invoice / Quotation</h3>
+                <p className="text-xs text-muted-foreground">Fill in all details to generate a formatted PDF matching Keya Fusion standards.</p>
+              </div>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground text-sm transition-colors">✕</button>
+            </div>
+            
+            <form onSubmit={handleAddQuotation} className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+              {/* Top Meta info */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Quote Number</label>
+                  <input required value={addFormData.quote_number} onChange={e => setAddFormData({...addFormData, quote_number: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono" />
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Subject / Machine Model Name</label>
+                  <input required value={addFormData.subject} onChange={e => setAddFormData({...addFormData, subject: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="e.g. Vertical Chamber Vacuum Packing Machine" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                  <select value={addFormData.status} onChange={e => setAddFormData({...addFormData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {Object.keys(statusConfig).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Customer / Account</label>
+                  <select required value={addFormData.account_id} onChange={e => handleAccountChange(e.target.value)} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                    <option value="">Select Customer</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Billing and Shipping Address Overrides */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Billing Address</label>
+                  <textarea rows={2} value={addFormData.billing_address} onChange={e => setAddFormData({...addFormData, billing_address: e.target.value})} className="px-3 py-1.5 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground leading-normal" placeholder="Customer billing address details..." />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Shipping Address</label>
+                  <textarea rows={2} value={addFormData.shipping_address} onChange={e => setAddFormData({...addFormData, shipping_address: e.target.value})} className="px-3 py-1.5 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground leading-normal" placeholder="Customer shipping address details..." />
+                </div>
+              </div>
+
+              {/* Dynamic Items Builder */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Line Items</label>
+                  <button type="button" onClick={handleAddRow} className="flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded text-[11px] font-medium transition-colors">
+                    <Plus size={12} /> Add Item Row
+                  </button>
+                </div>
+
+                <div className="border border-border rounded overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-border text-[10px] uppercase font-semibold text-muted-foreground">
+                        <th className="px-3 py-2 text-left w-[30%]">Product</th>
+                        <th className="px-3 py-2 text-left w-[30%]">Description / Details</th>
+                        <th className="px-3 py-2 text-right w-[10%]">Qty</th>
+                        <th className="px-3 py-2 text-right w-[12%]">Rate (₹)</th>
+                        <th className="px-3 py-2 text-right w-[8%]">IGST (%)</th>
+                        <th className="px-3 py-2 text-right w-[12%]">Amount (₹)</th>
+                        <th className="px-2 py-2 text-center w-[5%]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {addFormData.items.map((item, index) => {
+                        const amount = (item.quantity || 0) * (item.unit_price || 0);
+                        const tax = amount * ((item.tax_percent || 0) / 100);
+                        const totalLine = amount + tax;
+                        return (
+                          <tr key={index} className="border-b border-border last:border-0">
+                            <td className="px-3 py-2">
+                              <select required value={item.product_id} onChange={e => handleItemChange(index, "product_id", e.target.value)} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-foreground focus:outline-none focus:border-primary">
+                                <option value="">Select Product</option>
+                                {products.map(p => <option key={p.id} value={p.id}>{p.name} {p.code ? `(${p.code})` : ""}</option>)}
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input value={item.description} onChange={e => handleItemChange(index, "description", e.target.value)} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-foreground focus:outline-none focus:border-primary" placeholder="e.g. Capacity: 1kg - 25kg" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" required min="1" value={item.quantity} onChange={e => handleItemChange(index, "quantity", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" required min="0" step="0.01" value={item.unit_price} onChange={e => handleItemChange(index, "unit_price", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" required min="0" value={item.tax_percent} onChange={e => handleItemChange(index, "tax_percent", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">
+                              ₹{totalLine.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 text-center">
+                              {addFormData.items.length > 1 && (
+                                <button type="button" onClick={() => handleRemoveRow(index)} className="text-rose-500 hover:text-rose-400">✕</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Terms and Live calculation totals */}
+              <div className="grid grid-cols-3 gap-6 border-t border-border pt-4">
+                <div className="col-span-2 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Terms &amp; Conditions</label>
+                  <textarea rows={5} value={addFormData.terms_and_conditions} onChange={e => setAddFormData({...addFormData, terms_and_conditions: e.target.value})} className="w-full px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono leading-relaxed" />
+                </div>
+                
+                <div className="bg-muted/10 border border-border rounded p-4 flex flex-col gap-3 justify-center">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Subtotal:</span>
+                    <span className="font-mono">₹{liveSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Add IGST:</span>
+                    <span className="font-mono">₹{liveTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold text-foreground border-t border-border pt-2 mt-1">
+                    <span>Grand Total:</span>
+                    <span className="font-mono text-primary">₹{liveGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create &amp; Save Quotation</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

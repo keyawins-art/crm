@@ -8,6 +8,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
@@ -16,7 +17,7 @@ from app.core.email import send_email
 from app.core.workflow import execute_workflows
 from app.core.security import get_password_hash
 from app.models.lead import LeadStatus, LeadNote, LeadActivity
-from app.models.opportunity import OpportunityStage
+from app.models.opportunity import OpportunityStage, QuotationItem
 from app.models.audit import AuditLog, AuditAction
 from app.models.activity import TimelineActivity
 from app.models import (
@@ -28,7 +29,9 @@ from app.models import (
     Quotation,
     User,
     Role,
+    CompanySettings,
 )
+from app.schemas.company_settings import CompanySettingsRead, CompanySettingsUpdate
 from app.schemas.crm import (
     AccountCreate, AccountRead, AccountUpdate,
     ContactCreate, ContactRead, ContactUpdate,
@@ -1454,7 +1457,8 @@ def create_quotation(
     current_user: User = Depends(require_permission("quotations:create")),
     db: Session = Depends(get_db),
 ):
-    obj = Quotation(**payload.model_dump(exclude_none=True))
+    data = payload.model_dump(exclude_none=True, exclude={'items'})
+    obj = Quotation(**data)
     
     # Auto-assign ownership if applicable
     if hasattr(obj, 'owner_id') and not getattr(obj, 'owner_id', None):
@@ -1467,10 +1471,45 @@ def create_quotation(
 
     db.add(obj)
     db.flush()
+
+    subtotal = 0.0
+    tax_amount = 0.0
+    
+    # Process Items
+    if payload.items:
+        for idx, item in enumerate(payload.items):
+            qty = float(item.quantity)
+            rate = float(item.unit_price)
+            discount_pct = float(item.discount_percent)
+            tax_pct = float(item.tax_percent)
+            
+            line_taxable = (qty * rate) * (1 - (discount_pct / 100.0))
+            line_tax = line_taxable * (tax_pct / 100.0)
+            line_total = line_taxable + line_tax
+            
+            subtotal += line_taxable
+            tax_amount += line_tax
+            
+            qi = QuotationItem(
+                quotation_id=obj.id,
+                product_id=item.product_id,
+                sort_order=idx,
+                description=item.description,
+                quantity=qty,
+                unit_price=rate,
+                discount_percent=discount_pct,
+                tax_percent=tax_pct,
+                total_price=line_total
+            )
+            db.add(qi)
+            
+    # Update totals
+    obj.subtotal = subtotal
+    obj.tax_amount = tax_amount
+    obj.grand_total = subtotal + tax_amount
+
     log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
-    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
-    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -1717,7 +1756,39 @@ def restore_quotation(
     return obj
 
 
+@router.get("/quotations/{id}/pdf")
+def get_quotation_pdf(
+    id: UUID,
+    current_user: User = Depends(require_permission("quotations:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Quotation).filter(Quotation.id == id, Quotation.is_deleted == False)
 
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Quotation, 'owner_id'):
+            query = query.filter(Quotation.owner_id == current_user.id)
+        elif hasattr(Quotation, 'assigned_to_id'):
+            if hasattr(Quotation, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Quotation.assigned_to_id == current_user.id, Quotation.created_by_id == current_user.id))
+            else:
+                query = query.filter(Quotation.assigned_to_id == current_user.id)
+        elif hasattr(Quotation, 'created_by_id'):
+            query = query.filter(Quotation.created_by_id == current_user.id)
+
+    obj = query.first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+        
+    from app.services.pdf_generator import generate_quotation_pdf
+    pdf_buffer = generate_quotation_pdf(obj)
+    
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Quotation_{obj.quote_number}.pdf"}
+    )
 
 
 
@@ -2346,4 +2417,47 @@ def list_roles(
     db: Session = Depends(get_db),
 ):
     return db.query(Role).all()
+
+
+# Company Settings
+@router.get("/company-settings", response_model=CompanySettingsRead)
+def get_company_settings(db: Session = Depends(get_db)):
+    settings = db.query(CompanySettings).first()
+    if not settings:
+        # Default Seed details for Keya Fusion Technology if not found
+        settings = CompanySettings(
+            company_name="Keya Fusion Technology Pvt Ltd",
+            address="7, Prime Industry Estate, Savli - Vadodara Rd, behind Guru Krupa Farm, Manjusar, Gujarat 391775",
+            gst_number="24AAECK0154G1ZZ",
+            phone="9824420127",
+            bank_name="STATE BANK OF INDIA",
+            bank_branch="SAMA SAVLI",
+            bank_account_no="31753679471",
+            bank_ifsc="SBIN0013553"
+        )
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+
+@router.put("/company-settings", response_model=CompanySettingsRead)
+def update_company_settings(
+    payload: CompanySettingsUpdate,
+    current_user: User = Depends(require_permission("users:update")), # Requires admin-level permission to modify system settings
+    db: Session = Depends(get_db),
+):
+    settings = db.query(CompanySettings).first()
+    if not settings:
+        settings = CompanySettings(company_name="Keya Fusion Technology Pvt Ltd")
+        db.add(settings)
+        db.flush()
+        
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(settings, key, value)
+        
+    db.commit()
+    db.refresh(settings)
+    return settings
 

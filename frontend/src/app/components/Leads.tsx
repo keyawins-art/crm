@@ -3,7 +3,7 @@ import {
   Search, Plus, MoreHorizontal, TrendingUp,
   ChevronUp, ChevronDown, ArrowRight, Filter, UserPlus
 } from "lucide-react";
-import { leadsAPI } from "../../lib/api";
+import { leadsAPI, usersAPI } from "../../lib/api";
 
 type LeadStatus = "new" | "assigned" | "in_process" | "converted" | "recycled" | "dead";
 
@@ -23,6 +23,7 @@ export function Leads() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [users, setUsers] = useState<any[]>([]);
 
   const statuses = ["All", "new", "assigned", "in_process", "converted", "recycled", "dead"];
 
@@ -34,11 +35,22 @@ export function Leads() {
     email: "",
     company: "",
     status: "new",
+    assigned_to_id: "",
   });
 
   useEffect(() => {
     loadLeads();
+    loadUsers();
   }, [page]);
+
+  const loadUsers = async () => {
+    try {
+      const res = await usersAPI.list();
+      setUsers(res.data.items || res.data || []);
+    } catch (err) {
+      console.error("Failed to load users", err);
+    }
+  };
 
   const loadLeads = async () => {
     try {
@@ -56,11 +68,13 @@ export function Leads() {
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await leadsAPI.create({
-        ...addFormData,
-      });
+      const payload = { ...addFormData };
+      if (!payload.assigned_to_id) {
+        delete (payload as any).assigned_to_id;
+      }
+      await leadsAPI.create(payload);
       setIsAddModalOpen(false);
-      setAddFormData({ first_name: "", last_name: "", email: "", company: "", status: "new" });
+      setAddFormData({ first_name: "", last_name: "", email: "", company: "", status: "new", assigned_to_id: "" });
       loadLeads();
     } catch (err) {
       console.error("Failed to create lead:", err);
@@ -129,7 +143,7 @@ export function Leads() {
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
                 <th className="w-10 px-3 py-2.5" />
               </tr>
@@ -138,6 +152,7 @@ export function Leads() {
               {filtered.map(lead => {
                 const st = statusConfig[lead.status] || statusConfig.new;
                 const initials = `${(lead.first_name || "?")[0]}${(lead.last_name || "?")[0]}`.toUpperCase();
+                const assignedUser = users.find(u => u.id === lead.assigned_to_id);
                 return (
                   <tr key={lead.id} className="border-b border-border hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-2.5">
@@ -158,7 +173,14 @@ export function Leads() {
                         {st.label}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{lead.source || "—"}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {assignedUser ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary/50 text-[10px] font-medium text-foreground">
+                          <span className="w-3 h-3 rounded-full bg-primary/20 flex items-center justify-center text-[7px] text-primary">{assignedUser.first_name[0]}{assignedUser.last_name[0]}</span>
+                          {assignedUser.first_name}
+                        </span>
+                      ) : "—"}
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
                       {lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "—"}
                     </td>
@@ -212,11 +234,20 @@ export function Leads() {
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company</label>
                 <input required value={addFormData.company} onChange={e => setAddFormData({...addFormData, company: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
-                <select value={addFormData.status} onChange={e => setAddFormData({...addFormData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                  {statuses.filter(s => s !== "All").map(s => <option key={s} value={s}>{statusConfig[s]?.label || s}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                  <select value={addFormData.status} onChange={e => setAddFormData({...addFormData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {statuses.filter(s => s !== "All").map(s => <option key={s} value={s}>{statusConfig[s]?.label || s}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</label>
+                  <select value={addFormData.assigned_to_id} onChange={e => setAddFormData({...addFormData, assigned_to_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    <option value="">Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">

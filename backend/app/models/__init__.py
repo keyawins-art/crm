@@ -39,6 +39,7 @@ from .knowledge_base import KnowledgeBaseArticle
 # Module 7 — System
 from .audit import AuditLog, AuditAction
 from .audit import Notification, NotificationType
+from .company_settings import CompanySettings
 
 __all__ = [
     # Base
@@ -84,5 +85,6 @@ __all__ = [
     "Invoice", "InvoiceStatus",
     "Payment",
     "Ticket", "TicketStatus", "TicketPriority", "TicketComment",
-    "KnowledgeBaseArticle"
+    "KnowledgeBaseArticle",
+    "CompanySettings"
 ]

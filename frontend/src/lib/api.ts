@@ -59,6 +59,8 @@ export const accountsAPI = {
   create: (data: any) => api.post("/crm/accounts", data),
   update: (id: string, data: any) => api.put(`/crm/accounts/${id}`, data),
   delete: (id: string) => api.delete(`/crm/accounts/${id}`),
+  activities: (id: string) => api.get(`/crm/accounts/${id}/activities`),
+  addActivity: (id: string, data: any) => api.post(`/crm/accounts/${id}/activities`, data),
 };
 
 // Contacts
@@ -68,6 +70,8 @@ export const contactsAPI = {
   create: (data: any) => api.post("/crm/contacts", data),
   update: (id: string, data: any) => api.put(`/crm/contacts/${id}`, data),
   delete: (id: string) => api.delete(`/crm/contacts/${id}`),
+  activities: (id: string) => api.get(`/crm/contacts/${id}/activities`),
+  addActivity: (id: string, data: any) => api.post(`/crm/contacts/${id}/activities`, data),
 };
 
 // Leads
@@ -112,6 +116,14 @@ export const dashboardAPI = {
   auditLogs: (limit = 10) => api.get(`/dashboard/audit-logs?limit=${limit}`),
 };
 
+// Products
+export const productsAPI = {
+  list: (page = 1, size = 100) => api.get(`/crm/products?page=${page}&size=${size}`),
+  create: (data: any) => api.post("/crm/products", data),
+  update: (id: string, data: any) => api.put(`/crm/products/${id}`, data),
+  delete: (id: string) => api.delete(`/crm/products/${id}`),
+};
+
 // Quotations
 export const quotationsAPI = {
   list: (page = 1, size = 20) => api.get(`/crm/quotations?page=${page}&size=${size}`),
@@ -119,6 +131,7 @@ export const quotationsAPI = {
   create: (data: any) => api.post("/crm/quotations", data),
   update: (id: string, data: any) => api.put(`/crm/quotations/${id}`, data),
   delete: (id: string) => api.delete(`/crm/quotations/${id}`),
+  downloadPdf: (id: string) => api.get(`/crm/quotations/${id}/pdf`, { responseType: 'blob' }),
 };
 
 // Sales Process
@@ -215,6 +228,12 @@ export const integrationsAPI = {
   list: () => api.get("/crm/integrations"),
   connect: (provider: string, data: any) => api.post(`/crm/integrations/${provider}/connect`, data),
   disconnect: (provider: string) => api.post(`/crm/integrations/${provider}/disconnect`),
+};
+
+// Company Profile Settings
+export const companySettingsAPI = {
+  get: () => api.get("/crm/company-settings"),
+  update: (data: any) => api.put("/crm/company-settings", data),
 };
 
 // Notifications
