@@ -12,8 +12,7 @@ import { logout, getUser } from "../../lib/auth";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/leads", icon: UserPlus, label: "Leads" },
-  { to: "/contacts", icon: Users, label: "Contacts" },
-  { to: "/accounts", icon: Building2, label: "Accounts" },
+  { to: "/accounts", icon: Building2, label: "Customers" },
   { to: "/deals", icon: TrendingUp, label: "Deals" },
   { to: "/quotations", icon: FileText, label: "Quotations" },
   { to: "/sales-orders", icon: ShoppingCart, label: "Sales Orders" },

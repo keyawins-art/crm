@@ -207,7 +207,10 @@ export function Quotations() {
 
   const filtered = quotations.filter(q => {
     const term = search.toLowerCase();
-    return !term || q.quote_number?.toLowerCase().includes(term) || q.subject?.toLowerCase().includes(term);
+    return !term || 
+           q.quote_number?.toLowerCase().includes(term) || 
+           q.subject?.toLowerCase().includes(term) ||
+           q.account?.name?.toLowerCase().includes(term);
   });
 
   const fmt = (v: number | null) => v != null ? `₹${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
@@ -238,6 +241,7 @@ export function Quotations() {
             <thead className="sticky top-0 z-10">
               <tr className="bg-card border-b border-border">
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Quote #</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Subject</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
@@ -258,6 +262,7 @@ export function Quotations() {
                         <span className="font-mono font-medium text-foreground">{q.quote_number}</span>
                       </div>
                     </td>
+                    <td className="px-3 py-2.5 text-foreground font-medium">{q.account ? q.account.name : "—"}</td>
                     <td className="px-3 py-2.5 text-foreground">{q.subject}</td>
                     <td className="px-3 py-2.5">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
