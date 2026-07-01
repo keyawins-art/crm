@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8000";
+// Dynamically use the host IP so that it works across the local network
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const API_BASE_URL = `http://${host}:8000`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

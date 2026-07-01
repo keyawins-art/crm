@@ -14,6 +14,7 @@ from app.db.database import SessionLocal
 from app.core.rbac import require_permission
 from app.core.email import send_email
 from app.core.workflow import execute_workflows
+from app.core.security import get_password_hash
 from app.models.lead import LeadStatus, LeadNote, LeadActivity
 from app.models.opportunity import OpportunityStage
 from app.models.audit import AuditLog, AuditAction
@@ -2288,7 +2289,9 @@ def create_user(
     current_user: User = Depends(require_permission("users:create")),
     db: Session = Depends(get_db),
 ):
-    user = User(**payload.model_dump(exclude_none=True, exclude={"password"}))
+    data = payload.model_dump(exclude_none=True, exclude={"password"})
+    data["password_hash"] = get_password_hash(payload.password)
+    user = User(**data)
     db.add(user)
     db.commit()
     db.refresh(user)

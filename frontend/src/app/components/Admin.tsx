@@ -66,7 +66,11 @@ export function Admin() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await usersAPI.create(addFormData);
+      const dataToSend = { ...addFormData };
+      if (!dataToSend.role_id) {
+        delete (dataToSend as any).role_id;
+      }
+      await usersAPI.create(dataToSend);
       setIsAddModalOpen(false);
       setAddFormData({ email: "", first_name: "", last_name: "", password: "", role_id: "" });
       fetchData();
