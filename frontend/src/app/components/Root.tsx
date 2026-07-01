@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, TrendingUp, CheckSquare, BarChart3,
   Bell, Search, Settings, ChevronRight, Zap, LogOut,
   MessageSquare, FileText, Shield, HelpCircle, Menu, X,
-  UserPlus, Building2, LifeBuoy, Target
+  UserPlus, Building2, LifeBuoy, Target, ShoppingCart,
+  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug
 } from "lucide-react";
 import { useState } from "react";
 import { logout, getUser } from "../../lib/auth";
@@ -14,14 +15,23 @@ const navItems = [
   { to: "/contacts", icon: Users, label: "Contacts" },
   { to: "/accounts", icon: Building2, label: "Accounts" },
   { to: "/deals", icon: TrendingUp, label: "Deals" },
+  { to: "/quotations", icon: FileText, label: "Quotations" },
+  { to: "/sales-orders", icon: ShoppingCart, label: "Sales Orders" },
   { to: "/invoices", icon: FileText, label: "Invoices" },
   { to: "/tasks", icon: CheckSquare, label: "Tasks" },
+  { to: "/calendar", icon: Calendar, label: "Calendar" },
+  { to: "/calls", icon: Phone, label: "Calls" },
+  { to: "/emails", icon: Mail, label: "Emails" },
+  { to: "/knowledge-base", icon: Book, label: "Knowledge Base" },
+  { to: "/documents", icon: Folder, label: "Documents" },
+  { to: "/workflows", icon: GitMerge, label: "Workflows" },
   { to: "/tickets", icon: LifeBuoy, label: "Tickets" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
 const bottomItems = [
-  { icon: MessageSquare, label: "Messages", badge: 3 },
+  { to: "/notifications", icon: Bell, label: "Notifications" },
+  { to: "/integrations", icon: Plug, label: "Integrations" },
   { icon: Shield, label: "Security" },
   { icon: HelpCircle, label: "Help" },
   { icon: Settings, label: "Settings" },
@@ -37,6 +47,11 @@ export function Root() {
   const userInitials = user ? `${(user.first_name || "U")[0]}${(user.last_name || "")[0]}`.toUpperCase() : "U";
   const userName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "User";
   const userRole = user?.role || "Sales Executive";
+  const isAdmin = userRole === "Admin" || userRole === "System Administrator";
+
+  const currentNavItems = isAdmin 
+    ? [...navItems, { to: "/admin", icon: Shield, label: "Admin Panel" }] 
+    : navItems;
 
   return (
     <div className="flex h-screen bg-background overflow-hidden" style={{ fontFamily: "var(--font-sans)" }}>
@@ -64,7 +79,7 @@ export function Root() {
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
           <div className="px-2 space-y-0.5">
-            {navItems.map(({ to, icon: Icon, label, end }) => (
+            {currentNavItems.map(({ to, icon: Icon, label, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -94,19 +109,31 @@ export function Root() {
                 Quick Access
               </p>
               <div className="space-y-0.5">
-                {bottomItems.map(({ icon: Icon, label, badge }) => (
-                  <button
-                    key={label}
-                    className="flex items-center gap-3 px-2.5 py-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors w-full"
-                  >
-                    <Icon size={15} className="shrink-0" />
-                    <span className="truncate">{label}</span>
-                    {badge && (
-                      <span className="ml-auto bg-primary text-white text-[10px] font-mono px-1.5 py-0.5 rounded-full">
-                        {badge}
-                      </span>
-                    )}
-                  </button>
+                {bottomItems.map(({ icon: Icon, label, to }: any) => (
+                  to ? (
+                    <NavLink
+                      key={label}
+                      to={to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-2.5 py-2 rounded text-xs font-medium transition-colors w-full ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        }`
+                      }
+                    >
+                      <Icon size={15} className="shrink-0" />
+                      <span className="truncate">{label}</span>
+                    </NavLink>
+                  ) : (
+                    <button
+                      key={label}
+                      className="flex items-center gap-3 px-2.5 py-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors w-full"
+                    >
+                      <Icon size={15} className="shrink-0" />
+                      <span className="truncate">{label}</span>
+                    </button>
+                  )
                 ))}
               </div>
             </div>

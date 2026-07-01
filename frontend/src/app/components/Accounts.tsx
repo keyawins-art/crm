@@ -41,7 +41,7 @@ export function Accounts() {
     return !q || a.name?.toLowerCase().includes(q) || a.industry?.toLowerCase().includes(q);
   });
 
-  const fmt = (v: number | null) => v ? (v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`) : "—";
+  const fmt = (v: number | null) => v ? (v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : `₹${(v / 1000).toFixed(0)}k`) : "—";
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: "var(--font-sans)" }}>

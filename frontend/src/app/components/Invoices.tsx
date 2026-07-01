@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, FileText, DollarSign } from "lucide-react";
+import { Search, Plus, MoreHorizontal, FileText, IndianRupee } from "lucide-react";
 import { salesAPI } from "../../lib/api";
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -39,7 +39,7 @@ export function Invoices() {
     return !q || inv.invoice_number?.toLowerCase().includes(q);
   });
 
-  const fmt = (v: number | null) => v != null ? `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
+  const fmt = (v: number | null) => v != null ? `₹${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: "var(--font-sans)" }}>
@@ -101,7 +101,7 @@ export function Invoices() {
                     </td>
                     <td className="px-3 py-2.5">
                       <button className="flex items-center gap-1 px-2 py-1 text-[10px] text-primary border border-primary/30 rounded hover:bg-primary/10 transition-colors">
-                        <DollarSign size={10} /> Pay
+                        <IndianRupee size={10} /> Pay
                       </button>
                     </td>
                   </tr>

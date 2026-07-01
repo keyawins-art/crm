@@ -236,8 +236,24 @@ class UserRead(CRMBase):
     last_name: str
     phone: Optional[str] = None
     status: Optional[str] = None
+    role_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class UserUpdate(CRMBase):
+    email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    role_id: Optional[UUID] = None
+    status: Optional[str] = None
+
+
+class RoleRead(CRMBase):
+    id: UUID
+    name: str
+    description: Optional[str] = None
 
 
 class LeadNoteCreate(BaseModel):

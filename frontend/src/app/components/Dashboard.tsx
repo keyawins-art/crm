@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  TrendingUp, TrendingDown, Users, DollarSign, Target, Activity,
+  TrendingUp, TrendingDown, Users, IndianRupee, Target, Activity,
   CheckCircle2, Clock, AlertCircle, ArrowRight, Phone, Mail,
   Calendar, Circle, Edit
 } from "lucide-react";
@@ -80,7 +80,7 @@ export function Dashboard() {
         const opps = oppsRes.data.items.map((o: any) => ({
           name: o.name,
           company: "—",
-          value: `$${(o.amount / 1000).toFixed(0)}k`,
+          value: `₹${(o.amount / 1000).toFixed(0)}k`,
           stage: o.stage.replace("_", " "),
           avatar: o.name.substring(0, 2).toUpperCase()
         }));
@@ -99,11 +99,11 @@ export function Dashboard() {
   const kpis = stats ? [
     {
       label: "Total Revenue",
-      value: `$${(stats.revenue / 1000).toFixed(1)}k`,
+      value: `₹${(stats.revenue / 1000).toFixed(1)}k`,
       change: "",
       up: true,
       sub: "From Closed Won deals",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "#00d4aa",
     },
     {
@@ -246,7 +246,7 @@ export function Dashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                 <XAxis dataKey="month" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={v => `$${v / 1000}k`} />
+                <YAxis tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={v => `₹${v / 1000}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="revenue" stroke="#4f7eff" strokeWidth={2} fill="url(#revGrad)" dot={false} />
               </AreaChart>
@@ -264,7 +264,7 @@ export function Dashboard() {
             {pipelineData.length > 0 ? (
               <BarChart data={pipelineData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <XAxis type="number" tick={{ fill: "#6b7694", fontSize: 9, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="stage" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)", textTransform: "capitalize" }} axisLine={false} tickLine={false} width={80} />
+                <YAxis type="category" dataKey="stage" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip
                   cursor={{ fill: "rgba(255,255,255,0.03)" }}
                   content={({ active, payload }) =>
@@ -272,7 +272,7 @@ export function Dashboard() {
                       <div className="rounded border border-border bg-popover px-3 py-1.5 text-xs font-mono capitalize">
                         <p className="text-muted-foreground">{payload[0].payload.stage}</p>
                         <p className="text-foreground">{payload[0].value} deals</p>
-                        <p style={{ color: "#00d4aa" }}>${((payload[0].payload.value || 0) / 1000).toFixed(0)}k value</p>
+                        <p style={{ color: "#00d4aa" }}>₹{((payload[0].payload.value || 0) / 1000).toFixed(0)}k value</p>
                       </div>
                     ) : null
                   }

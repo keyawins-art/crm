@@ -26,6 +26,7 @@ from app.models import (
     Product,
     Quotation,
     User,
+    Role,
 )
 from app.schemas.crm import (
     AccountCreate, AccountRead, AccountUpdate,
@@ -34,7 +35,7 @@ from app.schemas.crm import (
     OpportunityCreate, OpportunityRead, OpportunityUpdate,
     ProductCreate, ProductRead, ProductUpdate,
     QuotationCreate, QuotationRead, QuotationUpdate,
-    UserCreate, UserRead, PaginatedResponse
+    UserCreate, UserRead, UserUpdate, RoleRead, PaginatedResponse
 )
 
 router = APIRouter(prefix="/crm", tags=["CRM"])
@@ -2302,3 +2303,44 @@ def list_users(
     limit: int = 100,
 ):
     return db.query(User).offset(skip).limit(limit).all()
+
+@router.put('/users/{id}', response_model=UserRead)
+def update_user(
+    id: UUID,
+    payload: UserUpdate,
+    current_user: User = Depends(require_permission('users:update')),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(user, key, value)
+        
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete('/users/{id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    id: UUID,
+    current_user: User = Depends(require_permission('users:delete')),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+        
+    db.delete(user)
+    db.commit()
+
+@router.get('/roles', response_model=List[RoleRead])
+def list_roles(
+    current_user: User = Depends(require_permission('users:read')),
+    db: Session = Depends(get_db),
+):
+    return db.query(Role).all()
+

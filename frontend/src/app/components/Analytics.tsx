@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   RadarChart, Radar, PolarGrid, PolarAngleAxis
 } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Users, Target, Award } from "lucide-react";
+import { TrendingUp, TrendingDown, IndianRupee, Users, Target, Award } from "lucide-react";
 
 const revenueMonthly = [
   { month: "Jan", revenue: 142000, deals: 5, leads: 38 },
@@ -62,7 +62,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
       {label && <p className="text-muted-foreground mb-1">{label}</p>}
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color || p.fill }}>
-          {p.name}: {typeof p.value === "number" && p.value > 1000 ? `$${(p.value / 1000).toFixed(0)}k` : p.value}
+          {p.name}: {typeof p.value === "number" && p.value > 1000 ? `₹${(p.value / 1000).toFixed(0)}k` : p.value}
         </p>
       ))}
     </div>
@@ -80,10 +80,10 @@ export function Analytics() {
   const avgDeal = Math.round(totalRevenue / totalDeals);
 
   const kpis = [
-    { label: "Total Revenue", value: `$${(totalRevenue / 1000).toFixed(0)}k`, change: "+18.4%", up: true, icon: DollarSign, color: "#00d4aa" },
+    { label: "Total Revenue", value: `₹${(totalRevenue / 1000).toFixed(0)}k`, change: "+18.4%", up: true, icon: IndianRupee, color: "#00d4aa" },
     { label: "Total Leads", value: totalLeads, change: "+11.2%", up: true, icon: Users, color: "#4f7eff" },
     { label: "Deals Closed", value: totalDeals, change: "-1", up: false, icon: Target, color: "#f59e0b" },
-    { label: "Avg Deal Size", value: `$${(avgDeal / 1000).toFixed(0)}k`, change: "+6.7%", up: true, icon: Award, color: "#a78bfa" },
+    { label: "Avg Deal Size", value: `₹${(avgDeal / 1000).toFixed(0)}k`, change: "+6.7%", up: true, icon: Award, color: "#a78bfa" },
   ];
 
   return (
@@ -155,7 +155,7 @@ export function Analytics() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="month" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="left" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={v => `$${v / 1000}k`} />
+              <YAxis yAxisId="left" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={v => `₹${v / 1000}k`} />
               <YAxis yAxisId="right" orientation="right" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
               <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f7eff" strokeWidth={2} fill="url(#revGrad2)" dot={false} />
@@ -305,7 +305,7 @@ export function Analytics() {
                   <td className="px-4 py-3 font-mono text-muted-foreground">{rep.calls}</td>
                   <td className="px-4 py-3 font-mono text-muted-foreground">{rep.emails}</td>
                   <td className="px-4 py-3 font-mono text-foreground font-semibold">{rep.deals}</td>
-                  <td className="px-4 py-3 font-mono font-semibold text-foreground">${(rep.revenue / 1000).toFixed(0)}k</td>
+                  <td className="px-4 py-3 font-mono font-semibold text-foreground">₹{(rep.revenue / 1000).toFixed(0)}k</td>
                   <td className="px-4 py-3">
                     <span className="font-mono font-semibold" style={{ color: rep.winRate > 50 ? "#00d4aa" : rep.winRate > 35 ? "#f59e0b" : "#f43f5e" }}>
                       {rep.winRate}%

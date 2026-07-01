@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Plus, MoreHorizontal, TrendingUp, DollarSign,
+  Plus, MoreHorizontal, TrendingUp, IndianRupee,
   Calendar, User2, ChevronRight, Search, SlidersHorizontal,
   ArrowUpRight, Clock, Target
 } from "lucide-react";
@@ -32,8 +32,8 @@ const stageConfig: Record<string, { color: string; bg: string; border: string }>
 const stages: Stage[] = ["Prospecting", "Qualification", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
 
 const fmt = (v: number | null | undefined) => {
-  if (v == null) return "$0";
-  return v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`;
+  if (v == null) return "₹0";
+  return v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : `₹${(v / 1000).toFixed(0)}k`;
 };
 
 export function Deals() {

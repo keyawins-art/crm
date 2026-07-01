@@ -24,7 +24,7 @@ const statusConfig: Record<string, { color: string; bg: string }> = {
   Inactive: { color: "#6b7694", bg: "#6b769418" },
 };
 
-type SortKey = "first_name" | "company" | "created_at";
+type SortKey = "first_name" | "title" | "created_at";
 
 export function Contacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
