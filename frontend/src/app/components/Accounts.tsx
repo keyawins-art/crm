@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, MoreHorizontal, Building2 } from "lucide-react";
-import { accountsAPI } from "../../lib/api";
+import { accountsAPI, usersAPI, productsAPI } from "../../lib/api";
 
 const industryColors: Record<string, string> = {
   technology: "#4f7eff",
@@ -25,18 +25,49 @@ export function Accounts() {
   const [loadingActivities, setLoadingActivities] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addFormData, setAddFormData] = useState({
+  const [users, setUsers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  
+  const getInitialFormState = () => ({
     name: "",
-    industry: "technology",
+    contact_name: "",
     type: "prospect",
+    industry: "manufacturing",
     phone: "",
     email: "",
     gst_number: "",
+    billing_city: "",
+    billing_state: "",
+    source: "exhibition",
+    product_of_interest: "",
+    owner_id: "",
   });
+
+  const [addFormData, setAddFormData] = useState(getInitialFormState());
 
   useEffect(() => {
     loadAccounts();
+    loadUsers();
+    loadProducts();
   }, []);
+
+  const loadUsers = async () => {
+    try {
+      const res = await usersAPI.list();
+      setUsers(res.data || []);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await productsAPI.list(1, 100);
+      setProducts(res.data.items || []);
+    } catch (err) {
+      console.error("Failed to load products:", err);
+    }
+  };
 
   const loadAccounts = async () => {
     try {
@@ -53,7 +84,13 @@ export function Accounts() {
 
   const filtered = accounts.filter(a => {
     const q = search.toLowerCase();
-    return !q || a.name?.toLowerCase().includes(q) || a.industry?.toLowerCase().includes(q);
+    return !q || 
+           a.name?.toLowerCase().includes(q) || 
+           a.contact_name?.toLowerCase().includes(q) ||
+           a.phone?.toLowerCase().includes(q) ||
+           a.gst_number?.toLowerCase().includes(q) ||
+           a.billing_city?.toLowerCase().includes(q) ||
+           a.product_of_interest?.toLowerCase().includes(q);
   });
 
   const loadActivities = async (accountId: string) => {
@@ -92,13 +129,16 @@ export function Accounts() {
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await accountsAPI.create(addFormData);
+      const payload = { ...addFormData };
+      if (!payload.owner_id) delete (payload as any).owner_id;
+      await accountsAPI.create(payload);
       setIsAddModalOpen(false);
-      setAddFormData({ name: "", industry: "technology", type: "prospect", phone: "", email: "", gst_number: "" });
+      setAddFormData(getInitialFormState());
       loadAccounts();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to add customer");
+      const errMsg = err.response?.data?.detail || "Failed to add customer";
+      alert(errMsg);
     }
   };
 
@@ -130,18 +170,22 @@ export function Accounts() {
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-card border-b border-border">
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Company Name</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Contact Person</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Revenue</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Website</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Phone / Email</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GST No.</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assignee</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Product of Interest</th>
                 <th className="w-10 px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {filtered.map(acc => {
-                const indColor = industryColors[acc.industry] || "#6b7694";
+                const assignedUser = users.find(u => u.id === acc.owner_id);
+                const assigneeName = assignedUser ? `${assignedUser.first_name} ${assignedUser.last_name || ""}` : "Unassigned";
                 return (
                   <tr key={acc.id} onClick={() => handleSelectAccount(acc)} className="cursor-pointer border-b border-border hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-2.5">
@@ -149,26 +193,28 @@ export function Accounts() {
                         <div className="w-7 h-7 rounded bg-primary/10 flex items-center justify-center shrink-0">
                           <Building2 size={13} className="text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{acc.name}</p>
-                          {acc.email && <p className="text-[10px] text-muted-foreground">{acc.email}</p>}
-                        </div>
+                        <span className="font-semibold text-foreground">{acc.name}</span>
                       </div>
                     </td>
+                    <td className="px-3 py-2.5 text-foreground">{acc.contact_name || "—"}</td>
                     <td className="px-3 py-2.5">
-                      {acc.industry ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
-                          style={{ color: indColor, background: indColor + "18" }}>
-                          {acc.industry}
-                        </span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary capitalize">
+                        {acc.type || "prospect"}
+                      </span>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground capitalize">{acc.type || "—"}</td>
-                    <td className="px-3 py-2.5 font-mono font-semibold text-foreground">{fmt(acc.annual_revenue)}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{acc.website || "—"}</td>
-                    <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {acc.created_at ? new Date(acc.created_at).toLocaleDateString() : "—"}
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {acc.billing_city ? `${acc.billing_city}${acc.billing_state ? ", " + acc.billing_state : ""}` : "—"}
                     </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex flex-col">
+                        <span className="text-foreground">{acc.phone || "—"}</span>
+                        {acc.email && <span className="text-[10px] text-muted-foreground">{acc.email}</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[11px] text-primary font-semibold">{acc.gst_number || "—"}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground capitalize">{acc.source || "—"}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{assigneeName}</td>
+                    <td className="px-3 py-2.5 text-foreground font-medium">{acc.product_of_interest || "—"}</td>
                     <td className="px-3 py-2.5">
                       <button className="text-muted-foreground hover:text-foreground transition-colors">
                         <MoreHorizontal size={14} />
@@ -200,11 +246,15 @@ export function Accounts() {
             <div className="flex flex-col gap-2">
               <h2 className="text-lg font-bold text-foreground">{selectedAccount.name}</h2>
               <div className="text-xs text-muted-foreground space-y-1">
-                <p><span className="font-semibold text-foreground">Type:</span> <span className="capitalize">{selectedAccount.type}</span></p>
-                <p><span className="font-semibold text-foreground">Industry:</span> <span className="capitalize">{selectedAccount.industry || "—"}</span></p>
+                <p><span className="font-semibold text-foreground">Contact Person:</span> {selectedAccount.contact_name || "—"}</p>
+                <p><span className="font-semibold text-foreground">Company Type:</span> <span className="capitalize">{selectedAccount.type}</span></p>
                 <p><span className="font-semibold text-foreground">Phone:</span> {selectedAccount.phone || "—"}</p>
                 <p><span className="font-semibold text-foreground">Email:</span> {selectedAccount.email || "—"}</p>
-                <p><span className="font-semibold text-foreground">GST No:</span> <span className="font-mono text-primary">{selectedAccount.gst_number || "—"}</span></p>
+                <p><span className="font-semibold text-foreground">Location:</span> {selectedAccount.billing_city ? `${selectedAccount.billing_city}, ${selectedAccount.billing_state || ""}` : "—"}</p>
+                <p><span className="font-semibold text-foreground">GST No:</span> <span className="font-mono text-primary font-bold">{selectedAccount.gst_number || "—"}</span></p>
+                <p><span className="font-semibold text-foreground">Source:</span> <span className="capitalize">{selectedAccount.source || "—"}</span></p>
+                <p><span className="font-semibold text-foreground">Assignee:</span> {users.find(u => u.id === selectedAccount.owner_id) ? `${users.find(u => u.id === selectedAccount.owner_id).first_name} ${users.find(u => u.id === selectedAccount.owner_id).last_name || ""}` : "Unassigned"}</p>
+                <p><span className="font-semibold text-foreground">Product of Interest:</span> <span className="text-primary font-semibold">{selectedAccount.product_of_interest || "—"}</span></p>
               </div>
             </div>
 
@@ -248,51 +298,88 @@ export function Accounts() {
       )}
       </div>
 
-      {/* Add Account Modal */}
+      {/* Add Customer Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
               <h3 className="text-sm font-semibold text-foreground">New Customer</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">✕</button>
             </div>
-            <form onSubmit={handleAddAccount} className="p-4 flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Name</label>
-                <input required value={addFormData.name} onChange={e => setAddFormData({...addFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
-              </div>
+            <form onSubmit={handleAddAccount} className="p-6 flex-1 overflow-y-auto flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
-                  <input type="email" value={addFormData.email} onChange={e => setAddFormData({...addFormData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="hello@acme.com" />
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company Name</label>
+                  <input required value={addFormData.name} onChange={e => setAddFormData({...addFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Keya Industries" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Phone</label>
-                  <input value={addFormData.phone} onChange={e => setAddFormData({...addFormData, phone: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="+91 9876543210" />
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Name (Contact Person)</label>
+                  <input required value={addFormData.contact_name} onChange={e => setAddFormData({...addFormData, contact_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Rakesh Patel" />
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">GST Number</label>
-                <input value={addFormData.gst_number} onChange={e => setAddFormData({...addFormData, gst_number: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono" placeholder="22AAAAA0000A1Z5" />
-              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Industry</label>
-                  <select value={addFormData.industry} onChange={e => setAddFormData({...addFormData, industry: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                    {Object.keys(industryColors).map(i => <option key={i} value={i}>{i.replace("_", " ")}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Type</label>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company Type</label>
                   <select value={addFormData.type} onChange={e => setAddFormData({...addFormData, type: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
                     {["prospect", "customer", "partner", "vendor"].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">GST Number</label>
+                  <input value={addFormData.gst_number} onChange={e => setAddFormData({...addFormData, gst_number: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono" placeholder="24AAECK0154G1ZZ" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Phone</label>
+                  <input value={addFormData.phone} onChange={e => setAddFormData({...addFormData, phone: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="+91 9876543210" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
+                  <input type="email" value={addFormData.email} onChange={e => setAddFormData({...addFormData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="client@company.com" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Location (City)</label>
+                  <input value={addFormData.billing_city} onChange={e => setAddFormData({...addFormData, billing_city: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Vadodara" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Location (State)</label>
+                  <input value={addFormData.billing_state} onChange={e => setAddFormData({...addFormData, billing_state: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Gujarat" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Source</label>
+                  <select value={addFormData.source} onChange={e => setAddFormData({...addFormData, source: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {["exhibition", "website", "cold_call", "referral", "other"].map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Assignee (Assigned To)</label>
+                  <select value={addFormData.owner_id} onChange={e => setAddFormData({...addFormData, owner_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                    <option value="">Select Assignee</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name || ""}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Product of Interest</label>
+                <select value={addFormData.product_of_interest} onChange={e => setAddFormData({...addFormData, product_of_interest: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                  <option value="">Select Product Model</option>
+                  {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
               </div>
               
-              <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
-                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create Customer</button>
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border shrink-0">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create Customer</button>
               </div>
             </form>
           </div>

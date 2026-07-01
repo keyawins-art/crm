@@ -60,6 +60,11 @@ class Account(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     pan_number = Column(String(20), nullable=True)
     description = Column(Text, nullable=True)
 
+    # Added custom customer fields
+    contact_name = Column(String(255), nullable=True)
+    source = Column(String(255), nullable=True)
+    product_of_interest = Column(String(255), nullable=True)
+
     # Ownership
     owner_id = Column(
         UUID(as_uuid=True),

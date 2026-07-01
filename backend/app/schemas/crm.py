@@ -30,12 +30,17 @@ class AccountCreate(CRMBase):
     employee_count: Optional[int] = None
     gst_number: Optional[str] = None
     pan_number: Optional[str] = None
+    contact_name: Optional[str] = None
+    source: Optional[str] = None
+    product_of_interest: Optional[str] = None
+    owner_id: Optional[UUID] = None
 
 
 class AccountRead(AccountCreate):
     id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    owner: Optional["UserRead"] = None
 
 
 class AccountUpdate(CRMBase):
@@ -50,6 +55,10 @@ class AccountUpdate(CRMBase):
     employee_count: Optional[int] = None
     gst_number: Optional[str] = None
     pan_number: Optional[str] = None
+    contact_name: Optional[str] = None
+    source: Optional[str] = None
+    product_of_interest: Optional[str] = None
+    owner_id: Optional[UUID] = None
 
 
 class ContactCreate(CRMBase):

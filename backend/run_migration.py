@@ -10,7 +10,10 @@ with engine.connect() as conn:
     try:
         conn.execute(text("ALTER TABLE quotations ADD COLUMN IF NOT EXISTS billing_address TEXT;"))
         conn.execute(text("ALTER TABLE quotations ADD COLUMN IF NOT EXISTS shipping_address TEXT;"))
+        conn.execute(text("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255);"))
+        conn.execute(text("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS source VARCHAR(255);"))
+        conn.execute(text("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS product_of_interest VARCHAR(255);"))
         conn.commit()
-        print("Migration successful: added billing_address and shipping_address to quotations.")
+        print("Migration successful: added custom columns to quotations and accounts.")
     except Exception as e:
         print("Migration error:", e)

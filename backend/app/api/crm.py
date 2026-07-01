@@ -87,6 +87,35 @@ def create_account(
     current_user: User = Depends(require_permission("accounts:create")),
     db: Session = Depends(get_db),
 ):
+    # Duplicate Customer Check: Company Name, Contact Name, GST, Email, Phone
+    from sqlalchemy import or_, func
+    dup_filters = []
+    
+    if payload.name:
+        dup_filters.append(func.lower(Account.name) == payload.name.lower())
+    if payload.contact_name:
+        dup_filters.append(func.lower(Account.contact_name) == payload.contact_name.lower())
+    if payload.gst_number:
+        dup_filters.append(func.lower(Account.gst_number) == payload.gst_number.lower())
+    if payload.email:
+        dup_filters.append(func.lower(Account.email) == payload.email.lower())
+    if payload.phone:
+        dup_filters.append(Account.phone == payload.phone)
+        
+    if dup_filters:
+        existing = db.query(Account).filter(
+            Account.is_deleted == False,
+            or_(*dup_filters)
+        ).first()
+        if existing:
+            owner_info = "Unassigned"
+            if existing.owner:
+                owner_info = f"{existing.owner.first_name} {existing.owner.last_name or ''} ({existing.owner.email})"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Customer details match an existing customer assigned to {owner_info}."
+            )
+
     obj = Account(**payload.model_dump(exclude_none=True))
     
     # Auto-assign ownership if applicable
