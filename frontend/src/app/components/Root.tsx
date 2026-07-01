@@ -30,11 +30,11 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { to: "/notifications", icon: Bell, label: "Notifications" },
+  { to: "/notifications", icon: Bell, label: "Notifications", badge: 3 },
   { to: "/integrations", icon: Plug, label: "Integrations" },
   { icon: Shield, label: "Security" },
   { icon: HelpCircle, label: "Help" },
-  { icon: Settings, label: "Settings" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function Root() {
