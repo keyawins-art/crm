@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, MoreHorizontal, Building2 } from "lucide-react";
 import { accountsAPI, usersAPI, productsAPI } from "../../lib/api";
+import { Customer360Modal } from "./Customer360Modal";
 
 const industryColors: Record<string, string> = {
   technology: "#4f7eff",
@@ -235,66 +236,13 @@ export function Accounts() {
         )}
       </div>
 
-      {/* Detail Sidebar */}
+      {/* Detail Sidebar replaced by Customer 360 Modal */}
       {selectedAccount && (
-        <div className="w-80 border-l border-border bg-card flex flex-col shrink-0 animate-in slide-in-from-right-8 duration-200">
-          <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
-            <h3 className="font-semibold text-foreground text-sm">Customer Details</h3>
-            <button onClick={() => setSelectedAccount(null)} className="text-muted-foreground hover:text-foreground">✕</button>
-          </div>
-          <div className="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-lg font-bold text-foreground">{selectedAccount.name}</h2>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p><span className="font-semibold text-foreground">Contact Person:</span> {selectedAccount.contact_name || "—"}</p>
-                <p><span className="font-semibold text-foreground">Company Type:</span> <span className="capitalize">{selectedAccount.type}</span></p>
-                <p><span className="font-semibold text-foreground">Phone:</span> {selectedAccount.phone || "—"}</p>
-                <p><span className="font-semibold text-foreground">Email:</span> {selectedAccount.email || "—"}</p>
-                <p><span className="font-semibold text-foreground">Location:</span> {selectedAccount.billing_city ? `${selectedAccount.billing_city}, ${selectedAccount.billing_state || ""}` : "—"}</p>
-                <p><span className="font-semibold text-foreground">GST No:</span> <span className="font-mono text-primary font-bold">{selectedAccount.gst_number || "—"}</span></p>
-                <p><span className="font-semibold text-foreground">Source:</span> <span className="capitalize">{selectedAccount.source || "—"}</span></p>
-                <p><span className="font-semibold text-foreground">Assignee:</span> {users.find(u => u.id === selectedAccount.owner_id) ? `${users.find(u => u.id === selectedAccount.owner_id).first_name} ${users.find(u => u.id === selectedAccount.owner_id).last_name || ""}` : "Unassigned"}</p>
-                <p><span className="font-semibold text-foreground">Product of Interest:</span> <span className="text-primary font-semibold">{selectedAccount.product_of_interest || "—"}</span></p>
-              </div>
-            </div>
-
-            <hr className="border-border" />
-            
-            <div className="flex-1 flex flex-col min-h-[300px]">
-              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Activity & Notes</h4>
-              
-              <form onSubmit={handleAddNote} className="mb-4">
-                <textarea 
-                  value={newNote} 
-                  onChange={e => setNewNote(e.target.value)} 
-                  placeholder="Log a call or meeting..."
-                  className="w-full text-xs p-2 bg-secondary/30 border border-border rounded focus:outline-none focus:border-primary resize-none h-20 text-foreground"
-                />
-                <button type="submit" disabled={!newNote.trim()} className="mt-2 w-full py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 transition-colors">
-                  Save Note
-                </button>
-              </form>
-
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3">
-                {loadingActivities ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Loading...</p>
-                ) : activities.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No activities yet.</p>
-                ) : (
-                  activities.map(act => (
-                    <div key={act.id} className="text-xs p-3 rounded border border-border bg-secondary/10">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold text-primary capitalize">{act.activity_type}</span>
-                        <span className="text-[10px] text-muted-foreground">{new Date(act.created_at).toLocaleString()}</span>
-                      </div>
-                      <p className="text-muted-foreground whitespace-pre-wrap">{act.content}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <Customer360Modal 
+          account={selectedAccount} 
+          users={users} 
+          onClose={() => setSelectedAccount(null)} 
+        />
       )}
       </div>
 

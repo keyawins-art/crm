@@ -1,7 +1,7 @@
 
 
 from sqlalchemy import Column, String, Text, Numeric, Boolean, ForeignKey, Enum as SAEnum, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import enum
 
@@ -32,6 +32,8 @@ class Product(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     description = Column(Text, nullable=True)
     category = Column(SAEnum(ProductCategory), nullable=True)
     status = Column(SAEnum(ProductStatus), default=ProductStatus.ACTIVE, nullable=False, index=True)
+    image_url = Column(String(255), nullable=True)
+    specifications = Column(JSONB, nullable=True)
 
     # Pricing
     list_price = Column(Numeric(15, 2), nullable=False, default=0)  
