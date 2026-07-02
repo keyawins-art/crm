@@ -935,6 +935,32 @@ def restore_lead(
     return obj
 
 
+import os
+import shutil
+from uuid import uuid4
+
+@router.post("/products/upload-image")
+def upload_product_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permission("products:read")),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded.")
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported file format. Supported: .jpg, .jpeg, .png, .gif, .webp, .svg")
+        
+    os.makedirs("uploads", exist_ok=True)
+    unique_filename = f"product_{uuid4().hex}{file_ext}"
+    file_path = os.path.join("uploads", unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Since fastapi serves static files from uploads, we can return the path
+    return {"url": f"/{file_path}"}
+
+
 # Products
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 def create_product(

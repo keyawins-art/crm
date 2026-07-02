@@ -163,6 +163,8 @@ class ProductCreate(CRMBase):
     list_price: Optional[float] = None
     cost_price: Optional[float] = None
     currency: Optional[str] = None
+    image_url: Optional[str] = None
+    specifications: Optional[dict] = None
 
 
 class ProductRead(ProductCreate):
@@ -180,6 +182,8 @@ class ProductUpdate(CRMBase):
     list_price: Optional[float] = None
     cost_price: Optional[float] = None
     currency: Optional[str] = None
+    image_url: Optional[str] = None
+    specifications: Optional[dict] = None
 
 
 class OpportunityCreate(CRMBase):
