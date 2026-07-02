@@ -815,7 +815,12 @@ def update_lead(
     obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+        
+    # User's requirement: "lead assign hone ke badd lock ho jani chaiye aur durea sales exicutive usko edit nhi kr sake"
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if obj.assigned_to_id and obj.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="This lead is assigned to another user and is locked for editing.")
+            
     update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(obj, key, value)

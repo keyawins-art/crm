@@ -102,6 +102,11 @@ class LeadCreate(CRMBase):
     title: Optional[str] = None
     status: Optional[str] = None
     rating: Optional[str] = None
+    address: Optional[str] = None
+    next_followup_date: Optional[datetime] = None
+    requirements: Optional[str] = None
+    remarks: Optional[str] = None
+    source: Optional[str] = None
     source_id: Optional[UUID] = None
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
@@ -123,6 +128,11 @@ class LeadUpdate(CRMBase):
     title: Optional[str] = None
     status: Optional[str] = None
     rating: Optional[str] = None
+    address: Optional[str] = None
+    next_followup_date: Optional[datetime] = None
+    requirements: Optional[str] = None
+    remarks: Optional[str] = None
+    source: Optional[str] = None
     source_id: Optional[UUID] = None
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None

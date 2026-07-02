@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import {
   Plus, MoreHorizontal, TrendingUp, IndianRupee,
   Calendar, User2, ChevronRight, Search, SlidersHorizontal,
-  ArrowUpRight, Clock, Target
+  ArrowUpRight, Clock, Target, Building2, User
 } from "lucide-react";
-import { opportunitiesAPI } from "../../lib/api";
+import { opportunitiesAPI, accountsAPI, leadsAPI } from "../../lib/api";
 
 type Stage = "prospecting" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
 
@@ -42,6 +42,9 @@ export function Deals() {
   const [search, setSearch] = useState("");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  
   // Add Deal Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
@@ -49,11 +52,27 @@ export function Deals() {
     amount: "",
     stage: "prospecting",
     close_date: new Date().toISOString().split('T')[0],
+    account_id: "",
+    lead_id: "",
   });
 
   useEffect(() => {
     loadDeals();
+    loadAccountsAndLeads();
   }, []);
+
+  const loadAccountsAndLeads = async () => {
+    try {
+      const [accRes, leadRes] = await Promise.all([
+        accountsAPI.list(1, 100),
+        leadsAPI.list(1, 100)
+      ]);
+      setAccounts(accRes.data.items || []);
+      setLeads(leadRes.data.items || []);
+    } catch (err) {
+      console.error("Failed to load related data", err);
+    }
+  };
 
   const loadDeals = async () => {
     try {
@@ -70,12 +89,13 @@ export function Deals() {
   const handleAddDeal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await opportunitiesAPI.create({
-        ...addFormData,
-        amount: parseFloat(addFormData.amount) || 0,
-      });
+      const payload = { ...addFormData, amount: parseFloat(addFormData.amount) || 0 };
+      if (!payload.account_id) delete (payload as any).account_id;
+      if (!payload.lead_id) delete (payload as any).lead_id;
+
+      await opportunitiesAPI.create(payload);
       setIsAddModalOpen(false);
-      setAddFormData({ name: "", amount: "", stage: "prospecting", close_date: new Date().toISOString().split('T')[0] });
+      setAddFormData({ name: "", amount: "", stage: "prospecting", close_date: new Date().toISOString().split('T')[0], account_id: "", lead_id: "" });
       loadDeals();
     } catch (err) {
       console.error("Failed to create deal:", err);
@@ -180,6 +200,12 @@ export function Deals() {
                             {deal.probability}%
                           </span>
                         </div>
+                        {(deal.account_id || deal.lead_id) && (
+                           <div className="flex items-center gap-1.5 mt-2">
+                              {deal.account_id && <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"><Building2 size={8}/> Customer</span>}
+                              {deal.lead_id && <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"><User size={8}/> Lead</span>}
+                           </div>
+                        )}
                         <div className="h-1 rounded-full bg-white/5 mt-2 overflow-hidden">
                           <div className="h-full rounded-full transition-all" style={{ width: `${deal.probability}%`, background: conf.color }} />
                         </div>
@@ -255,15 +281,33 @@ export function Deals() {
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Amount (₹)</label>
                 <input required type="number" min="0" step="0.01" value={addFormData.amount} onChange={e => setAddFormData({...addFormData, amount: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="0.00" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Stage</label>
-                <select value={addFormData.stage} onChange={e => setAddFormData({...addFormData, stage: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                  {stages.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Stage</label>
+                  <select value={addFormData.stage} onChange={e => setAddFormData({...addFormData, stage: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {stages.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Close Date</label>
+                  <input required type="date" value={addFormData.close_date} onChange={e => setAddFormData({...addFormData, close_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground style-date-input" />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Close Date</label>
-                <input required type="date" value={addFormData.close_date} onChange={e => setAddFormData({...addFormData, close_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Customer</label>
+                  <select value={addFormData.account_id} onChange={e => setAddFormData({...addFormData, account_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    <option value="">No Customer</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Lead</label>
+                  <select value={addFormData.lead_id} onChange={e => setAddFormData({...addFormData, lead_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    <option value="">No Lead</option>
+                    {leads.map(l => <option key={l.id} value={l.id}>{l.first_name} {l.last_name} {l.company ? `(${l.company})` : ""}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">

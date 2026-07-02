@@ -63,7 +63,7 @@ class LeadSource(Base, UUIDMixin, TimestampMixin):
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    leads = relationship("Lead", back_populates="source", lazy="dynamic")
+    leads = relationship("Lead", back_populates="source_obj", lazy="dynamic")
 
     def __repr__(self):
         return f"<LeadSource {self.name}>"
@@ -84,16 +84,21 @@ class Lead(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     phone = Column(String(20), nullable=True)
     mobile = Column(String(20), nullable=True)
     website = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
 
     # Status
     status = Column(SAEnum(LeadStatus), default=LeadStatus.NEW, nullable=False, index=True)
     rating = Column(SAEnum(LeadRating), nullable=True)
 
-    # Qualification
+    # Qualification & Requirements
     annual_revenue = Column(Numeric(15, 2), nullable=True)
     no_of_employees = Column(String(50), nullable=True)
     industry = Column(String(100), nullable=True)
     description = Column(Text, nullable=True)
+    requirements = Column(Text, nullable=True)  # what its need
+    remarks = Column(Text, nullable=True)       # remark
+    next_followup_date = Column(DateTime(timezone=True), nullable=True)  # followup
+    source = Column(String(100), nullable=True) # Direct source text
 
     # Conversion tracking
     is_converted = Column(Boolean, default=False, nullable=False, index=True)
@@ -110,7 +115,7 @@ class Lead(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    source = relationship("LeadSource", back_populates="leads", lazy="joined")
+    source_obj = relationship("LeadSource", back_populates="leads", lazy="joined")
     account = relationship("Account", back_populates="leads", foreign_keys=[account_id], lazy="joined")
     contact = relationship("Contact", back_populates="leads", foreign_keys=[contact_id], lazy="joined")
     assigned_to = relationship("User", back_populates="assigned_leads", foreign_keys=[assigned_to_id], lazy="joined")

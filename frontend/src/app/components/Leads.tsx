@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  Search, Plus, MoreHorizontal, TrendingUp,
-  ChevronUp, ChevronDown, ArrowRight, Filter, UserPlus
+  Search, Plus, MoreHorizontal, CheckCircle2,
+  Calendar, Edit2, UserPlus, FileText, MapPin, Phone, Mail, FileCheck
 } from "lucide-react";
 import { leadsAPI, usersAPI } from "../../lib/api";
 
@@ -27,16 +27,26 @@ export function Leads() {
 
   const statuses = ["All", "new", "assigned", "in_process", "converted", "recycled", "dead"];
 
-  // Add Lead Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addFormData, setAddFormData] = useState({
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLeadId, setEditingLeadId] = useState<string | null>(null);
+  
+  const defaultFormData = {
     first_name: "",
     last_name: "",
     email: "",
+    phone: "",
     company: "",
+    address: "",
     status: "new",
     assigned_to_id: "",
-  });
+    next_followup_date: "",
+    requirements: "",
+    remarks: "",
+    source: ""
+  };
+  
+  const [formData, setFormData] = useState(defaultFormData);
 
   useEffect(() => {
     loadLeads();
@@ -65,20 +75,50 @@ export function Leads() {
     }
   };
 
-  const handleAddLead = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingLeadId(null);
+    setFormData(defaultFormData);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (lead: any) => {
+    setEditingLeadId(lead.id);
+    setFormData({
+      first_name: lead.first_name || "",
+      last_name: lead.last_name || "",
+      email: lead.email || "",
+      phone: lead.phone || "",
+      company: lead.company || "",
+      address: lead.address || "",
+      status: lead.status || "new",
+      assigned_to_id: lead.assigned_to_id || "",
+      next_followup_date: lead.next_followup_date ? new Date(lead.next_followup_date).toISOString().split('T')[0] : "",
+      requirements: lead.requirements || "",
+      remarks: lead.remarks || "",
+      source: lead.source || "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...addFormData };
-      if (!payload.assigned_to_id) {
-        delete (payload as any).assigned_to_id;
+      const payload = { ...formData };
+      if (!payload.assigned_to_id) delete (payload as any).assigned_to_id;
+      if (!payload.next_followup_date) delete (payload as any).next_followup_date;
+      else payload.next_followup_date = new Date(payload.next_followup_date).toISOString();
+
+      if (editingLeadId) {
+        await leadsAPI.update(editingLeadId, payload);
+      } else {
+        await leadsAPI.create(payload);
       }
-      await leadsAPI.create(payload);
-      setIsAddModalOpen(false);
-      setAddFormData({ first_name: "", last_name: "", email: "", company: "", status: "new", assigned_to_id: "" });
+      setIsModalOpen(false);
+      setFormData(defaultFormData);
       loadLeads();
-    } catch (err) {
-      console.error("Failed to create lead:", err);
-      alert("Failed to create lead. Please try again.");
+    } catch (err: any) {
+      console.error("Failed to save lead:", err);
+      alert(err.response?.data?.detail || "Failed to save lead. Please try again.");
     }
   };
 
@@ -117,7 +157,7 @@ export function Leads() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+          <button onClick={handleOpenAdd} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
             <Plus size={12} /> Add Lead
           </button>
         </div>
@@ -125,7 +165,7 @@ export function Leads() {
 
       {/* Stats */}
       <div className="flex items-center gap-6 px-6 py-2.5 border-b border-border bg-secondary/30 text-[11px] font-mono text-muted-foreground">
-        <span>{total} total</span>
+        <span>{total} total leads</span>
         <span className="ml-auto text-muted-foreground/50">{filtered.length} shown</span>
       </div>
 
@@ -136,64 +176,124 @@ export function Leads() {
             <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ) : (
-          <table className="w-full text-xs border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-card border-b border-border">
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
-                <th className="w-10 px-3 py-2.5" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(lead => {
-                const st = statusConfig[lead.status] || statusConfig.new;
-                const initials = `${(lead.first_name || "?")[0]}${(lead.last_name || "?")[0]}`.toUpperCase();
-                const assignedUser = users.find(u => u.id === lead.assigned_to_id);
-                return (
-                  <tr key={lead.id} className="border-b border-border hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-mono font-semibold text-primary shrink-0">
-                          {initials}
+          <div className="min-w-max">
+            <table className="w-full text-xs border-collapse">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-card border-b border-border">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Company & Person</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Contact Info</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Address</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status & Assignee</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Followup Date</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-48">Requirements / Remarks</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(lead => {
+                  const st = statusConfig[lead.status] || statusConfig.new;
+                  const initials = `${(lead.company || "?")[0]}`.toUpperCase();
+                  const assignedUser = users.find(u => u.id === lead.assigned_to_id);
+                  return (
+                    <tr key={lead.id} className="border-b border-border hover:bg-white/[0.02] transition-colors align-top">
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-[11px] font-mono font-bold text-primary shrink-0 mt-0.5">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">{lead.company || "—"}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{lead.first_name} {lead.last_name}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{lead.first_name} {lead.last_name}</p>
-                          {lead.title && <p className="text-[10px] text-muted-foreground">{lead.title}</p>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Mail size={11} className="shrink-0" />
+                            <span className="truncate max-w-[140px]" title={lead.email}>{lead.email || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Phone size={11} className="shrink-0" />
+                            <span>{lead.phone || "—"}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{lead.email || "—"}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{lead.company || "—"}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ color: st.color, background: st.bg }}>
-                        {st.label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {assignedUser ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary/50 text-[10px] font-medium text-foreground">
-                          <span className="w-3 h-3 rounded-full bg-primary/20 flex items-center justify-center text-[7px] text-primary">{assignedUser.first_name[0]}{assignedUser.last_name[0]}</span>
-                          {assignedUser.first_name}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <button className="text-muted-foreground hover:text-foreground transition-colors">
-                        <MoreHorizontal size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-start gap-1.5 text-muted-foreground">
+                          <MapPin size={11} className="shrink-0 mt-0.5" />
+                          <span className="line-clamp-2 max-w-[150px]" title={lead.address}>{lead.address || "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="text-[11px] text-muted-foreground capitalize">{lead.source || "—"}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-2 items-start">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ color: st.color, background: st.bg }}>
+                            {st.label}
+                          </span>
+                          {assignedUser ? (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                              <span className="w-3.5 h-3.5 rounded-full bg-secondary flex items-center justify-center text-[7px] text-foreground shrink-0">{assignedUser.first_name[0]}{assignedUser.last_name[0]}</span>
+                              {assignedUser.first_name}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50">Unassigned</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                          <Calendar size={11} />
+                          {lead.next_followup_date ? new Date(lead.next_followup_date).toLocaleDateString() : "—"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-1.5">
+                          <p className="text-[10px] text-muted-foreground line-clamp-2" title={lead.requirements}>
+                            <span className="font-semibold text-foreground">Needs:</span> {lead.requirements || "—"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/70 line-clamp-1" title={lead.remarks}>
+                            <span className="font-semibold text-muted-foreground">Remark:</span> {lead.remarks || "—"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!lead.is_converted && (
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm("Convert this lead to a Customer (Account & Contact) and create a Deal?")) {
+                                  try {
+                                    await leadsAPI.convert(lead.id, { create_opportunity: true });
+                                    loadLeads();
+                                    alert("Lead converted to Customer and Deal created successfully!");
+                                  } catch (e: any) {
+                                    alert(e.response?.data?.detail || "Failed to convert lead.");
+                                  }
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-500 rounded text-[10px] font-medium transition-colors"
+                            >
+                              <UserPlus size={10} /> Convert
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleOpenEdit(lead)}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 border border-border rounded text-[10px] font-medium text-foreground transition-colors"
+                          >
+                            <Edit2 size={10} /> Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {!loading && filtered.length === 0 && (
@@ -205,56 +305,117 @@ export function Leads() {
         )}
       </div>
 
-      {/* Add Lead Modal */}
-      {isAddModalOpen && (
+      {/* Modal */}
+      {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-              <h3 className="text-sm font-semibold text-foreground">New Lead</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <FileCheck size={16} className="text-primary" />
+                {editingLeadId ? "Edit Lead" : "New Lead"}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                 ✕
               </button>
             </div>
-            <form onSubmit={handleAddLead} className="p-4 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">First Name</label>
-                  <input required value={addFormData.first_name} onChange={e => setAddFormData({...addFormData, first_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="John" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Last Name</label>
-                  <input required value={addFormData.last_name} onChange={e => setAddFormData({...addFormData, last_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Doe" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Email Address</label>
-                <input required type="email" value={addFormData.email} onChange={e => setAddFormData({...addFormData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="john@example.com" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company</label>
-                <input required value={addFormData.company} onChange={e => setAddFormData({...addFormData, company: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
-                  <select value={addFormData.status} onChange={e => setAddFormData({...addFormData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                    {statuses.filter(s => s !== "All").map(s => <option key={s} value={s}>{statusConfig[s]?.label || s}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</label>
-                  <select value={addFormData.assigned_to_id} onChange={e => setAddFormData({...addFormData, assigned_to_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                    <option value="">Unassigned</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
-                  </select>
+            <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+              
+              {/* Primary Info */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border pb-2">Primary Info</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Company Name</label>
+                    <input required value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Acme Corp" />
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-muted-foreground">First Name</label>
+                      <input required value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="John" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-muted-foreground">Last Name</label>
+                      <input required value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Doe" />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
+
+              {/* Contact & Address */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border pb-2">Contact Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Email Address</label>
+                    <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="john@example.com" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Contact / Phone</label>
+                    <input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="+1 234 567 890" />
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Address</label>
+                    <textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground min-h-[60px]" placeholder="Full address..." />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Assignment */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border pb-2">Tracking & Requirements</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Status</label>
+                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                      {statuses.filter(s => s !== "All").map(s => <option key={s} value={s}>{statusConfig[s]?.label || s}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Lead Source</label>
+                    <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                      <option value="">Unknown Source</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="website">Website</option>
+                      <option value="referral">Referral</option>
+                      <option value="direct_call">Direct Call</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="call_inquiry">Call Inquiry</option>
+                      <option value="indiamart">India Mart</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Lead Assign (Owner)</label>
+                    <select value={formData.assigned_to_id} onChange={e => setFormData({...formData, assigned_to_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                      <option value="">Unassigned</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Follow-up Date</label>
+                    <input type="date" value={formData.next_followup_date} onChange={e => setFormData({...formData, next_followup_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground style-date-input" />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">What its need (Requirements)</label>
+                    <textarea value={formData.requirements} onChange={e => setFormData({...formData, requirements: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground min-h-[80px]" placeholder="Describe what the lead needs..." />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Remarks</label>
+                    <textarea value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground min-h-[80px]" placeholder="Any additional notes or remarks..." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4 pt-5 border-t border-border sticky bottom-0 bg-card">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
                   Cancel
                 </button>
-                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
-                  Create Lead
+                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 flex items-center gap-2">
+                  <CheckCircle2 size={14} />
+                  {editingLeadId ? "Save Changes" : "Create Lead"}
                 </button>
               </div>
             </form>
