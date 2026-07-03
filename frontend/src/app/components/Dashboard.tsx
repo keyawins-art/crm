@@ -99,7 +99,7 @@ export function Dashboard() {
   const kpis = stats ? [
     {
       label: "Total Revenue",
-      value: `₹${(stats.revenue / 1000).toFixed(1)}k`,
+      value: `₹${((stats.revenue || 0) / 1000).toFixed(1)}k`,
       change: "",
       up: true,
       sub: "From Closed Won deals",
@@ -108,7 +108,7 @@ export function Dashboard() {
     },
     {
       label: "Total Leads",
-      value: stats.leads.toString(),
+      value: (stats.leads || 0).toString(),
       change: "",
       up: true,
       sub: "Active in database",
@@ -117,7 +117,7 @@ export function Dashboard() {
     },
     {
       label: "Opportunities",
-      value: stats.opportunities.toString(),
+      value: (stats.opportunities || 0).toString(),
       change: "",
       up: true,
       sub: "Deals in pipeline",
@@ -126,7 +126,7 @@ export function Dashboard() {
     },
     {
       label: "Accounts",
-      value: stats.accounts.toString(),
+      value: (stats.accounts || 0).toString(),
       change: "",
       up: true,
       sub: "Active companies",
