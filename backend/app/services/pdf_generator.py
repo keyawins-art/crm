@@ -165,7 +165,7 @@ Phone : {c_phone}"""
         if acc.billing_street: addr_parts.append(acc.billing_street)
         if acc.billing_city: addr_parts.append(acc.billing_city)
         if acc.billing_state: addr_parts.append(acc.billing_state)
-        if acc.billing_postal_code: addr_parts.append(acc.billing_postal_code)
+        if acc.billing_pincode: addr_parts.append(acc.billing_pincode)
     
     default_client_addr = ", ".join(addr_parts) if addr_parts else "N/A"
     client_gst = acc.gst_number if acc and getattr(acc, 'gst_number', None) else "N/A"

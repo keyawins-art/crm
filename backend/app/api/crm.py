@@ -1380,6 +1380,23 @@ def update_opportunitie(
     for key, value in update_data.items():
         setattr(obj, key, value)
         
+    # Auto-create Sales Order on Deal Won
+    if update_data.get('stage') == 'closed_won' or getattr(obj, 'stage') == 'closed_won':
+        from app.models.sales_order import SalesOrder, SalesOrderStatus
+        from app.api.sales_process import generate_unique_number
+        
+        existing_so = db.query(SalesOrder).filter(SalesOrder.opportunity_id == obj.id, SalesOrder.is_deleted == False).first()
+        if not existing_so:
+            sales_order = SalesOrder(
+                order_number=generate_unique_number("SO"),
+                status=SalesOrderStatus.CONFIRMED,
+                total_amount=obj.amount or 0,
+                opportunity_id=obj.id,
+                account_id=obj.account_id
+            )
+            db.add(sales_order)
+            log_audit(db, current_user, AuditAction.CREATED, "SalesOrder", None) # Just audit that it was created
+
     log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)

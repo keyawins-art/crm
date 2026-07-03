@@ -5,6 +5,7 @@ import {
   ArrowUpRight, Clock, Target, Building2, User
 } from "lucide-react";
 import { opportunitiesAPI, accountsAPI, leadsAPI } from "../../lib/api";
+import { Deal360Modal } from "./Deal360Modal";
 
 type Stage = "prospecting" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
 
@@ -45,13 +46,23 @@ export function Deals() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   
-  // Add Deal Modal State
+  const [is360Open, setIs360Open] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
     name: "",
     amount: "",
     stage: "prospecting",
     close_date: new Date().toISOString().split('T')[0],
+    account_id: "",
+    lead_id: "",
+  });
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    amount: "",
+    stage: "prospecting",
+    close_date: "",
     account_id: "",
     lead_id: "",
   });
@@ -100,6 +111,37 @@ export function Deals() {
     } catch (err) {
       console.error("Failed to create deal:", err);
       alert("Failed to create deal. Please try again.");
+    }
+  };
+
+  const openEditModal = () => {
+    if (!selectedDeal) return;
+    setEditFormData({
+      name: selectedDeal.name || "",
+      amount: selectedDeal.amount?.toString() || "",
+      stage: selectedDeal.stage || "prospecting",
+      close_date: selectedDeal.close_date ? selectedDeal.close_date.split('T')[0] : "",
+      account_id: selectedDeal.account_id || "",
+      lead_id: selectedDeal.contact_id || selectedDeal.lead_id || "", // fallback if mapped to contact
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditDeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDeal) return;
+    try {
+      const payload = { ...editFormData, amount: parseFloat(editFormData.amount) || 0 };
+      if (!payload.account_id) delete (payload as any).account_id;
+      if (!payload.lead_id) delete (payload as any).lead_id;
+
+      await opportunitiesAPI.update(selectedDeal.id, payload);
+      setIsEditModalOpen(false);
+      setSelectedDeal(null);
+      loadDeals();
+    } catch (err) {
+      console.error("Failed to update deal:", err);
+      alert("Failed to update deal. Please try again.");
     }
   };
 
@@ -239,12 +281,23 @@ export function Deals() {
               <div className="flex items-center gap-3 mb-1">
                 <h3 className="text-sm font-semibold text-foreground">{selectedDeal.name}</h3>
                 <span className="text-xs font-mono font-bold text-foreground">{fmt(selectedDeal.amount)}</span>
-                <span
-                  className="text-[10px] font-mono px-2 py-0.5 rounded capitalize"
+                <select 
+                  className="text-[10px] font-mono px-2 py-0.5 rounded capitalize border border-border focus:outline-none cursor-pointer"
                   style={{ color: (stageConfig[selectedDeal.stage] || stageConfig["prospecting"]).color, background: (stageConfig[selectedDeal.stage] || stageConfig["prospecting"]).bg }}
+                  value={selectedDeal.stage}
+                  onChange={async (e) => {
+                    const newStage = e.target.value as Stage;
+                    try {
+                      await opportunitiesAPI.update(selectedDeal.id, { stage: newStage });
+                      setSelectedDeal({...selectedDeal, stage: newStage});
+                      loadDeals();
+                    } catch (err) {
+                      console.error("Failed to update status", err);
+                    }
+                  }}
                 >
-                  {selectedDeal.stage.replace("_", " ")}
-                </span>
+                  {stages.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                </select>
               </div>
               <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-mono mt-2">
                 <span><Calendar size={10} className="inline mr-1" />Close: {selectedDeal.close_date ? new Date(selectedDeal.close_date).toLocaleDateString() : "—"}</span>
@@ -253,13 +306,24 @@ export function Deals() {
               </div>
             </div>
             <div className="flex items-center gap-2 ml-4">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-foreground transition-colors">
-                <ArrowUpRight size={12} /> Open
+              <button onClick={() => setIs360Open(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                Open Details
+              </button>
+              <button onClick={openEditModal} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-foreground transition-colors">
+                <ArrowUpRight size={12} /> Edit
               </button>
               <button onClick={() => setSelectedDeal(null)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5">✕</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Deal 360 Modal */}
+      {is360Open && selectedDeal && (
+        <Deal360Modal 
+          deal={selectedDeal} 
+          onClose={() => setIs360Open(false)} 
+        />
       )}
 
       {/* Add Deal Modal */}
@@ -293,21 +357,12 @@ export function Deals() {
                   <input required type="date" value={addFormData.close_date} onChange={e => setAddFormData({...addFormData, close_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground style-date-input" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Customer</label>
-                  <select value={addFormData.account_id} onChange={e => setAddFormData({...addFormData, account_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                    <option value="">No Customer</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Lead</label>
-                  <select value={addFormData.lead_id} onChange={e => setAddFormData({...addFormData, lead_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
-                    <option value="">No Lead</option>
-                    {leads.map(l => <option key={l.id} value={l.id}>{l.first_name} {l.last_name} {l.company ? `(${l.company})` : ""}</option>)}
-                  </select>
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Customer</label>
+                <select value={addFormData.account_id} onChange={e => setAddFormData({...addFormData, account_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                  <option value="">No Customer</option>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
               </div>
               <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
@@ -315,6 +370,57 @@ export function Deals() {
                 </button>
                 <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
                   Create Deal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Deal Modal */}
+      {isEditModalOpen && selectedDeal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">Edit Deal</h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleEditDeal} className="p-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Deal Name</label>
+                <input required value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Amount (₹)</label>
+                <input required type="number" min="0" step="0.01" value={editFormData.amount} onChange={e => setEditFormData({...editFormData, amount: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Stage</label>
+                  <select value={editFormData.stage} onChange={e => setEditFormData({...editFormData, stage: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {stages.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Close Date</label>
+                  <input required type="date" value={editFormData.close_date} onChange={e => setEditFormData({...editFormData, close_date: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground style-date-input" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Customer</label>
+                <select value={editFormData.account_id} onChange={e => setEditFormData({...editFormData, account_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                  <option value="">No Customer</option>
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                  Save Changes
                 </button>
               </div>
             </form>

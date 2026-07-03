@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, MoreHorizontal, FileText, Send, Download, Eye } from "lucide-react";
-import { quotationsAPI, salesAPI, accountsAPI, productsAPI } from "../../lib/api";
+import { quotationsAPI, salesAPI, accountsAPI, productsAPI, opportunitiesAPI } from "../../lib/api";
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
   draft:    { color: "#6b7694", bg: "#6b769418" },
@@ -17,6 +17,7 @@ export function Quotations() {
 
   const [accounts, setAccounts] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [deals, setDeals] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [pdfViewUrl, setPdfViewUrl] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -26,6 +27,7 @@ export function Quotations() {
     subject: "",
     status: "draft",
     account_id: "",
+    opportunity_id: "",
     billing_address: "",
     shipping_address: "",
     terms_and_conditions: `* 1 Year Warranty
@@ -48,7 +50,7 @@ export function Quotations() {
       if (selectedAcc.billing_street) parts.push(selectedAcc.billing_street);
       if (selectedAcc.billing_city) parts.push(selectedAcc.billing_city);
       if (selectedAcc.billing_state) parts.push(selectedAcc.billing_state);
-      if (selectedAcc.billing_postal_code) parts.push(selectedAcc.billing_postal_code);
+      if (selectedAcc.billing_pincode) parts.push(selectedAcc.billing_pincode);
       addr = parts.join(", ");
     }
     setAddFormData({
@@ -63,7 +65,17 @@ export function Quotations() {
     loadQuotations();
     loadAccounts();
     loadProducts();
+    loadDeals();
   }, []);
+
+  const loadDeals = async () => {
+    try {
+      const res = await opportunitiesAPI.list(1, 100);
+      setDeals(res.data.items || []);
+    } catch (err) {
+      console.error("Failed to load deals", err);
+    }
+  };
 
   const loadAccounts = async () => {
     try {
@@ -113,6 +125,7 @@ export function Quotations() {
     try {
       const payload = { ...addFormData };
       if (!payload.account_id) delete (payload as any).account_id;
+      if (!payload.opportunity_id) delete (payload as any).opportunity_id;
       // Filter out invalid items
       payload.items = payload.items.filter(item => item.product_id !== "");
       
@@ -335,6 +348,13 @@ export function Quotations() {
                   <select required value={addFormData.account_id} onChange={e => handleAccountChange(e.target.value)} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
                     <option value="">Select Customer</option>
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Deal (Opportunity)</label>
+                  <select value={addFormData.opportunity_id} onChange={e => setAddFormData({...addFormData, opportunity_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                    <option value="">No Deal</option>
+                    {deals.filter(d => d.account_id === addFormData.account_id || !addFormData.account_id).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
               </div>

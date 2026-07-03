@@ -93,6 +93,8 @@ export const opportunitiesAPI = {
   create: (data: any) => api.post("/crm/opportunities", data),
   update: (id: string, data: any) => api.put(`/crm/opportunities/${id}`, data),
   delete: (id: string) => api.delete(`/crm/opportunities/${id}`),
+  activities: (id: string) => api.get(`/crm/opportunities/${id}/activities`),
+  addActivity: (id: string, data: any) => api.post(`/crm/opportunities/${id}/activities`, data),
 };
 
 // Tasks
