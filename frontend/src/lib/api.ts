@@ -1,8 +1,11 @@
 import axios from "axios";
 
-// Dynamically use the host IP so that it works across the local network
+// In production (behind nginx proxy), API is on same origin.
+// In local dev, backend runs on port 8000.
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const API_BASE_URL = `http://${host}:8000`;
+const port = typeof window !== 'undefined' ? window.location.port : '8000';
+const isProxied = typeof window !== 'undefined' && (port === '3000' || port === '443' || port === '' || window.location.protocol === 'https:');
+const API_BASE_URL = isProxied ? '' : `http://${host}:8000`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
