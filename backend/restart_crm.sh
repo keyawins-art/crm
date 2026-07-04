@@ -1,15 +1,12 @@
 #!/bin/bash
-echo "🔄 Restarting CRM Services (Backend, Nginx, Pinggy)..."
+echo "🔄 Restarting CRM Services (Backend, Nginx, Ngrok)..."
 
 sudo systemctl restart crm-backend.service
 sudo systemctl restart nginx.service
-sudo systemctl restart pinggy.service
+sudo systemctl restart crm-ngrok.service
 
 echo "✅ Services Restarted Successfully!"
-echo "⏳ Waiting for new Pinggy URL..."
-sleep 4
-
 echo "------------------------------------------------"
-echo "🌐 Your new Pinggy URLs:"
-sudo journalctl -u pinggy.service -n 20 | grep -o 'http[s]*://[^ ]*pinggy[^ ]*' | tail -n 2
+echo "🌐 Your CRM is running at your Fixed Ngrok URL:"
+echo "https://plank-rubber-abiding.ngrok-free.dev"
 echo "------------------------------------------------"
