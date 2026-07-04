@@ -1,0 +1,3 @@
+@echo off
+echo Starting CRM Backend and Frontend together...
+npx concurrently -n "BACKEND,FRONTEND" -c "blue,green" "cd backend && uvicorn app.main:app --reload" "cd frontend && npm run dev"

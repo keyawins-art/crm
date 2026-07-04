@@ -1,0 +1,14 @@
+[Unit]
+Description=CRM Backend Uvicorn Server
+After=network.target
+
+[Service]
+User=keya
+WorkingDirectory=/home/keya/crm/backend
+Environment="PATH=/home/keya/crm/backend/venv/bin"
+ExecStart=/home/keya/crm/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

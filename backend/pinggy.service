@@ -1,0 +1,13 @@
+[Unit]
+Description=Pinggy Tunnel for CRM
+After=network.target crm-backend.service nginx.service
+
+[Service]
+User=keya
+Environment="AUTOSSH_GATETIME=0"
+ExecStart=/usr/bin/autossh -M 0 -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" -p 443 -R0:localhost:3000 a.pinggy.io
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

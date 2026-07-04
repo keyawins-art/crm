@@ -147,7 +147,7 @@ products = [
 ]
 
 def main():
-    conn = psycopg2.connect("dbname=crm_db user=postgres password=password host=localhost")
+    conn = psycopg2.connect("dbname=crm_db user=postgres password=Keya123 host=localhost")
     cur = conn.cursor()
     
     for p in products:

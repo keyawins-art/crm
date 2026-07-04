@@ -127,7 +127,7 @@ export const productsAPI = {
   create: (data: any) => api.post("/crm/products", data),
   update: (id: string, data: any) => api.put(`/crm/products/${id}`, data),
   delete: (id: string) => api.delete(`/crm/products/${id}`),
-  uploadImage: (data: any) => api.post("/crm/products/upload-image", data),
+  uploadImage: (data: any) => api.post("/crm/products/upload-image", data, { headers: { "Content-Type": "multipart/form-data" } }),
 };
 
 // Quotations
