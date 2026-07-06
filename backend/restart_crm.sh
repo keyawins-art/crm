@@ -1,4 +1,8 @@
 #!/bin/bash
+echo "📦 Building Frontend..."
+cd ~/crm/frontend || { echo "❌ Frontend directory not found!"; exit 1; }
+npm run build
+
 echo "🔄 Restarting CRM Services (Backend, Nginx, Ngrok)..."
 
 sudo systemctl restart crm-backend.service

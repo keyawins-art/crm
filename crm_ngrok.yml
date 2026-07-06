@@ -1,0 +1,7 @@
+version: "2"
+authtoken: 3G21RqfISoh0sAl7jdINBjk2BxU_6yeLe9GJPkM4pnEegkEvg
+web_addr: localhost:4041
+tunnels:
+  crm:
+    proto: http
+    addr: 3000

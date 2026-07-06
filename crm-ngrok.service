@@ -1,0 +1,12 @@
+[Unit]
+Description=CRM Ngrok Tunnel
+After=network.target
+
+[Service]
+User=keya
+ExecStart=/usr/local/bin/ngrok start --config /home/keya/crm_ngrok.yml crm
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

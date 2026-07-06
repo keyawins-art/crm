@@ -186,6 +186,7 @@ export function Leads() {
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status & Assignee</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Followup Date</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-48">Requirements / Remarks</th>
                   <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
@@ -248,6 +249,12 @@ export function Leads() {
                         <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                           <Calendar size={11} />
                           {lead.next_followup_date ? new Date(lead.next_followup_date).toLocaleDateString() : "—"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-0.5 font-mono text-[11px] text-muted-foreground">
+                          <span>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "—"}</span>
+                          <span className="text-[9px] opacity-70">{lead.created_at ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
                         </div>
                       </td>
                       <td className="px-3 py-3">
