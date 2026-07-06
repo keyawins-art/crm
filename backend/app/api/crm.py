@@ -2229,7 +2229,13 @@ def convert_lead(
                 name=acc_name,
                 industry=lead.industry,
                 annual_revenue=lead.annual_revenue,
-                owner_id=lead.assigned_to_id or current_user.id
+                owner_id=lead.assigned_to_id or current_user.id,
+                contact_name=(lead.first_name + " " + lead.last_name).strip(),
+                phone=lead.phone,
+                email=lead.email,
+                source=lead.source,
+                product_of_interest=lead.requirements,
+                billing_city=lead.address
             )
             db.add(account)
             db.flush()

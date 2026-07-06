@@ -33,6 +33,8 @@ class AccountCreate(CRMBase):
     contact_name: Optional[str] = None
     source: Optional[str] = None
     product_of_interest: Optional[str] = None
+    billing_city: Optional[str] = None
+    billing_state: Optional[str] = None
     owner_id: Optional[UUID] = None
 
 
@@ -58,6 +60,8 @@ class AccountUpdate(CRMBase):
     contact_name: Optional[str] = None
     source: Optional[str] = None
     product_of_interest: Optional[str] = None
+    billing_city: Optional[str] = None
+    billing_state: Optional[str] = None
     owner_id: Optional[UUID] = None
 
 
