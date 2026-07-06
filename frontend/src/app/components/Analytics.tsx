@@ -20,10 +20,12 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-type Period = "Today" | "This Week" | "This Month" | "QTD" | "YTD" | "All Time";
+type Period = "Today" | "This Week" | "This Month" | "QTD" | "YTD" | "All Time" | "Custom";
 
 export function Analytics() {
   const [period, setPeriod] = useState<Period>("All Time");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   
   // Real data state
@@ -42,7 +44,7 @@ export function Analytics() {
 
   useEffect(() => {
     loadData();
-  }, [period]);
+  }, [period, customStartDate, customEndDate]);
 
   const loadData = async () => {
     try {
@@ -59,23 +61,33 @@ export function Analytics() {
 
       // Filter by period
       let startDate = new Date(0);
+      let endDate = new Date(9999, 11, 31);
       const now = new Date();
       if (period === "Today") {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
       } else if (period === "This Week") {
         const firstDay = now.getDate() - now.getDay();
         startDate = new Date(now.getFullYear(), now.getMonth(), firstDay);
+        endDate = new Date(now.getFullYear(), now.getMonth(), firstDay + 6, 23, 59, 59);
       } else if (period === "This Month") {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
       } else if (period === "QTD") {
         const quarter = Math.floor(now.getMonth() / 3);
         startDate = new Date(now.getFullYear(), quarter * 3, 1);
+        endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59);
       } else if (period === "YTD") {
         startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+      } else if (period === "Custom") {
+        startDate = customStartDate ? new Date(customStartDate) : new Date(0);
+        endDate = customEndDate ? new Date(customEndDate) : new Date(9999, 11, 31);
+        endDate.setHours(23, 59, 59, 999);
       }
 
-      const leads = period === "All Time" ? rawLeads : rawLeads.filter((l: any) => l.created_at && new Date(l.created_at) >= startDate);
-      const opps = period === "All Time" ? rawOpps : rawOpps.filter((o: any) => o.created_at && new Date(o.created_at) >= startDate);
+      const leads = period === "All Time" ? rawLeads : rawLeads.filter((l: any) => l.created_at && new Date(l.created_at) >= startDate && new Date(l.created_at) <= endDate);
+      const opps = period === "All Time" ? rawOpps : rawOpps.filter((o: any) => o.created_at && new Date(o.created_at) >= startDate && new Date(o.created_at) <= endDate);
 
       // Process KPIs
       const totalLeads = leads.length;
@@ -202,16 +214,26 @@ export function Analytics() {
           <h1 className="text-base font-semibold text-foreground">Analytics & Reporting</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Real-time Performance Data</p>
         </div>
-        <div className="flex items-center gap-1 border border-border rounded overflow-hidden">
-          {(["Today", "This Week", "This Month", "QTD", "YTD", "All Time"] as Period[]).map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 text-xs font-mono font-medium transition-colors ${period === p ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-            >
-              {p}
-            </button>
-          ))}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1 border border-border rounded overflow-hidden">
+            {(["Today", "This Week", "This Month", "QTD", "YTD", "All Time", "Custom"] as Period[]).map(p => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 text-xs font-mono font-medium transition-colors ${period === p ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          {period === "Custom" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>From:</span>
+              <input type="date" className="bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} />
+              <span>To:</span>
+              <input type="date" className="bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
+            </div>
+          )}
         </div>
       </div>
 
