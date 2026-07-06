@@ -20,10 +20,10 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-type Period = "MTD" | "QTD" | "YTD";
+type Period = "Today" | "This Week" | "This Month" | "QTD" | "YTD" | "All Time";
 
 export function Analytics() {
-  const [period, setPeriod] = useState<Period>("YTD");
+  const [period, setPeriod] = useState<Period>("All Time");
   const [loading, setLoading] = useState(true);
   
   // Real data state
@@ -53,9 +53,29 @@ export function Analytics() {
         usersAPI.list()
       ]);
 
-      const leads = leadsRes.data.items || [];
-      const opps = oppsRes.data.items || [];
+      const rawLeads = leadsRes.data.items || [];
+      const rawOpps = oppsRes.data.items || [];
       const users = usersRes.data.items || [];
+
+      // Filter by period
+      let startDate = new Date(0);
+      const now = new Date();
+      if (period === "Today") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (period === "This Week") {
+        const firstDay = now.getDate() - now.getDay();
+        startDate = new Date(now.getFullYear(), now.getMonth(), firstDay);
+      } else if (period === "This Month") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (period === "QTD") {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+      } else if (period === "YTD") {
+        startDate = new Date(now.getFullYear(), 0, 1);
+      }
+
+      const leads = rawLeads.filter((l: any) => new Date(l.created_at) >= startDate);
+      const opps = rawOpps.filter((o: any) => new Date(o.created_at) >= startDate);
 
       // Process KPIs
       const totalLeads = leads.length;
@@ -132,7 +152,7 @@ export function Analytics() {
       // Process Team Performance
       const userStats: Record<string, any> = {};
       users.forEach((u: any) => {
-        userStats[u.id] = { name: u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email, calls: Math.floor(Math.random() * 50), emails: Math.floor(Math.random() * 100), deals: 0, revenue: 0, winRate: 0, quota: 500000, won: 0, lost: 0 };
+        userStats[u.id] = { name: u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email, deals: 0, revenue: 0, winRate: 0, quota: 500000, won: 0, lost: 0 };
       });
       opps.forEach((o: any) => {
         if (o.assigned_to_id && userStats[o.assigned_to_id]) {
@@ -183,7 +203,7 @@ export function Analytics() {
           <p className="text-xs text-muted-foreground mt-0.5">Real-time Performance Data</p>
         </div>
         <div className="flex items-center gap-1 border border-border rounded overflow-hidden">
-          {(["MTD", "QTD", "YTD"] as Period[]).map(p => (
+          {(["Today", "This Week", "This Month", "QTD", "YTD", "All Time"] as Period[]).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
