@@ -18,6 +18,13 @@ class TaskStatus(str, enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
+class TaskType(str, enum.Enum):
+    EMAIL = "email"
+    TASK = "task"
+    MEETING = "meeting"
+    FOLLOW_UP = "follow_up"
+    CALL = "call"
+
 
 class Task(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "tasks"
@@ -28,6 +35,7 @@ class Task(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     due_date = Column(DateTime(timezone=True), nullable=True)
     priority = Column(SAEnum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
     status = Column(SAEnum(TaskStatus), default=TaskStatus.PENDING, nullable=False)
+    task_type = Column(SAEnum(TaskType), default=TaskType.TASK, nullable=False)
     
     reminder_time = Column(DateTime(timezone=True), nullable=True)
     
@@ -39,6 +47,7 @@ class Task(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="SET NULL"), nullable=True, index=True)
     contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     opportunity_id = Column(UUID(as_uuid=True), ForeignKey("opportunities.id", ondelete="SET NULL"), nullable=True, index=True)
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], lazy="joined")
     created_by = relationship("User", foreign_keys=[created_by_id], lazy="joined")
@@ -46,6 +55,7 @@ class Task(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     lead = relationship("Lead", lazy="selectin")
     contact = relationship("Contact", lazy="selectin")
     opportunity = relationship("Opportunity", lazy="selectin")
+    account = relationship("Account", lazy="selectin")
 
     def __repr__(self):
         return f"<Task {self.title} [{self.status}]>"

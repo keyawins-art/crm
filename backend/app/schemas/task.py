@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.task import TaskPriority, TaskStatus
+from app.models.task import TaskPriority, TaskStatus, TaskType
 
 
 class TaskBase(BaseModel):
@@ -12,12 +12,14 @@ class TaskBase(BaseModel):
     due_date: Optional[datetime] = None
     priority: TaskPriority = TaskPriority.MEDIUM
     status: TaskStatus = TaskStatus.PENDING
+    task_type: TaskType = TaskType.TASK
     reminder_time: Optional[datetime] = None
     
     assigned_to_id: Optional[UUID] = None
     lead_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     opportunity_id: Optional[UUID] = None
+    account_id: Optional[UUID] = None
 
 
 class TaskCreate(TaskBase):
@@ -30,12 +32,14 @@ class TaskUpdate(BaseModel):
     due_date: Optional[datetime] = None
     priority: Optional[TaskPriority] = None
     status: Optional[TaskStatus] = None
+    task_type: Optional[TaskType] = None
     reminder_time: Optional[datetime] = None
     
     assigned_to_id: Optional[UUID] = None
     lead_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     opportunity_id: Optional[UUID] = None
+    account_id: Optional[UUID] = None
 
 
 class TaskRead(TaskBase):
