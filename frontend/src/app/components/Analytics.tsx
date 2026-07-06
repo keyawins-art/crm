@@ -55,7 +55,7 @@ export function Analytics() {
 
       const rawLeads = leadsRes.data.items || [];
       const rawOpps = oppsRes.data.items || [];
-      const users = usersRes.data.items || [];
+      const users = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data.items || []);
 
       // Filter by period
       let startDate = new Date(0);
