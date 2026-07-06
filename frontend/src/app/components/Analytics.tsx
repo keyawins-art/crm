@@ -74,8 +74,8 @@ export function Analytics() {
         startDate = new Date(now.getFullYear(), 0, 1);
       }
 
-      const leads = rawLeads.filter((l: any) => new Date(l.created_at) >= startDate);
-      const opps = rawOpps.filter((o: any) => new Date(o.created_at) >= startDate);
+      const leads = period === "All Time" ? rawLeads : rawLeads.filter((l: any) => l.created_at && new Date(l.created_at) >= startDate);
+      const opps = period === "All Time" ? rawOpps : rawOpps.filter((o: any) => o.created_at && new Date(o.created_at) >= startDate);
 
       // Process KPIs
       const totalLeads = leads.length;
