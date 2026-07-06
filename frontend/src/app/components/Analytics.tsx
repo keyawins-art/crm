@@ -48,8 +48,8 @@ export function Analytics() {
     try {
       setLoading(true);
       const [leadsRes, oppsRes, usersRes] = await Promise.all([
-        leadsAPI.list(1, 1000),
-        opportunitiesAPI.list(1, 1000),
+        leadsAPI.list(1, 100),
+        opportunitiesAPI.list(1, 100),
         usersAPI.list()
       ]);
 
