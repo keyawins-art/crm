@@ -1,7 +1,8 @@
 import sys, os
-from sqlalchemy import create_engine, text
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from sqlalchemy import text
+from app.db.database import engine
 
-engine = create_engine('postgresql://postgres:anything@127.0.0.1:5432/crm_db')
 with engine.begin() as con:
     res = con.execute(text("SELECT id FROM roles WHERE name = 'Sales Executive'")).fetchone()
     if res:
