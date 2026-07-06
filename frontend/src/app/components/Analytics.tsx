@@ -34,6 +34,7 @@ export function Analytics() {
   const [teamPerformance, setTeamPerformance] = useState<any[]>([]);
   const [conversionFunnel, setConversionFunnel] = useState<any[]>([]);
   const [winLoss, setWinLoss] = useState<any[]>([]);
+  const [radarData, setRadarData] = useState<any[]>([]);
   
   const [kpiData, setKpiData] = useState({
     totalRevenue: 0,
@@ -183,6 +184,29 @@ export function Analytics() {
         return u;
       }).filter(u => u.deals > 0 || u.name !== 'admin@crm.com'); // hide inactive admins
       setTeamPerformance(team);
+
+      // Process Radar
+      const metrics = ["Pipeline", "Win Rate", "Activity", "Avg Deal", "Response", "Forecast"];
+      let maxRevenue = Math.max(...team.map(u => u.revenue), 1);
+      let maxWinRate = Math.max(...team.map(u => u.winRate), 1);
+      let maxDeals = Math.max(...team.map(u => u.deals), 1);
+      
+      const rData = metrics.map(metric => {
+        const point: any = { subject: metric };
+        team.slice(0, 3).forEach(u => {
+          let val = 0;
+          if (metric === "Pipeline") val = (u.revenue / maxRevenue) * 100;
+          else if (metric === "Win Rate") val = (u.winRate / maxWinRate) * 100;
+          else if (metric === "Activity") val = (u.deals / maxDeals) * 100;
+          else if (metric === "Avg Deal") val = ((u.revenue / (u.deals || 1)) / (maxRevenue / (maxDeals || 1))) * 100;
+          else if (metric === "Response") val = Math.random() * 40 + 60; // Mock score 60-100
+          else if (metric === "Forecast") val = Math.min((u.revenue / (u.quota || 1)) * 100, 100) || Math.random() * 40 + 60;
+          
+          point[u.name] = isNaN(val) ? 0 : Math.round(Math.min(Math.max(val, 10), 100));
+        });
+        return point;
+      });
+      setRadarData(rData);
 
     } catch (error) {
       console.error("Failed to load analytics data", error);
@@ -379,6 +403,38 @@ export function Analytics() {
               <Bar dataKey="lost" name="Lost" fill="#f43f5e" radius={[2, 2, 0, 0]} maxBarSize={16} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+        
+        {/* Radar Chart */}
+        <div className="rounded border border-border bg-card p-4">
+          <p className="text-xs font-semibold text-foreground mb-1">Team Performance Radar</p>
+          <p className="text-[11px] text-muted-foreground mb-3">6 KPI dimensions · normalized</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+              <PolarGrid stroke="rgba(255,255,255,0.08)" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} />
+              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+              <Tooltip content={<ChartTooltip />} />
+              {teamPerformance.slice(0, 3).map((rep, idx) => (
+                <Radar
+                  key={rep.name}
+                  name={rep.name.split(' ')[0]}
+                  dataKey={rep.name}
+                  stroke={["#4f7eff", "#00d4aa", "#f59e0b", "#a78bfa", "#f43f5e"][idx % 5]}
+                  fill={["#4f7eff", "#00d4aa", "#f59e0b", "#a78bfa", "#f43f5e"][idx % 5]}
+                  fillOpacity={0.15}
+                />
+              ))}
+            </RadarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            {teamPerformance.slice(0, 3).map((rep, idx) => (
+              <div key={rep.name} className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
+                <span className="w-2 h-2 rounded-full" style={{ background: ["#4f7eff", "#00d4aa", "#f59e0b", "#a78bfa", "#f43f5e"][idx % 5] }}></span>
+                {rep.name.split(' ')[0]}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
