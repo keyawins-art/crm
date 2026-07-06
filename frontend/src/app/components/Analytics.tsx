@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import { TrendingUp, TrendingDown, IndianRupee, Users, Target, Award } from "lucide-react";
 import { leadsAPI, opportunitiesAPI, usersAPI } from "../../lib/api";
