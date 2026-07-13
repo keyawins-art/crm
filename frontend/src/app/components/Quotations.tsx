@@ -257,7 +257,6 @@ export function Quotations() {
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Subject</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
                 <th className="w-20 px-3 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
@@ -283,7 +282,6 @@ export function Quotations() {
                         {q.status?.replace("_", " ")}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 font-mono font-semibold text-foreground">{fmt(q.grand_total)}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
                       {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
                     </td>
@@ -332,7 +330,10 @@ export function Quotations() {
                 </div>
                 <div className="flex flex-col gap-1.5 col-span-2">
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Subject / Machine Model Name</label>
-                  <input required value={addFormData.subject} onChange={e => setAddFormData({...addFormData, subject: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="e.g. Vertical Chamber Vacuum Packing Machine" />
+                  <select required value={addFormData.subject} onChange={e => setAddFormData({...addFormData, subject: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                    <option value="">Select Machine Model / Subject</option>
+                    {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
@@ -384,13 +385,13 @@ export function Quotations() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[10px] uppercase font-semibold text-muted-foreground">
-                        <th className="px-3 py-2 text-left w-[30%]">Product</th>
-                        <th className="px-3 py-2 text-left w-[30%]">Description / Details</th>
+                        <th className="px-3 py-2 text-left w-[25%]">Product</th>
+                        <th className="px-3 py-2 text-left w-[25%]">Description / Details</th>
                         <th className="px-3 py-2 text-right w-[10%]">Qty</th>
-                        <th className="px-3 py-2 text-right w-[12%]">Rate (₹)</th>
-                        <th className="px-3 py-2 text-right w-[8%]">IGST (%)</th>
-                        <th className="px-3 py-2 text-right w-[12%]">Amount (₹)</th>
-                        <th className="px-2 py-2 text-center w-[5%]"></th>
+                        <th className="px-3 py-2 text-right w-[10%]">Unit Price (₹)</th>
+                        <th className="px-3 py-2 text-right w-[10%]">GST %</th>
+                        <th className="px-3 py-2 text-right w-[10%]">Total (₹)</th>
+                        <th className="px-2 py-2 text-center w-[10%]"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -413,13 +414,13 @@ export function Quotations() {
                               <input type="number" required min="1" value={item.quantity} onChange={e => handleItemChange(index, "quantity", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
                             </td>
                             <td className="px-3 py-2">
-                              <input type="number" required min="0" step="0.01" value={item.unit_price} onChange={e => handleItemChange(index, "unit_price", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                              <input type="number" required min="0" value={item.unit_price} onChange={e => handleItemChange(index, "unit_price", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
                             </td>
                             <td className="px-3 py-2">
-                              <input type="number" required min="0" value={item.tax_percent} onChange={e => handleItemChange(index, "tax_percent", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                              <input type="number" required min="0" max="100" value={item.tax_percent} onChange={e => handleItemChange(index, "tax_percent", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
                             </td>
-                            <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">
-                              ₹{totalLine.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <td className="px-3 py-2 text-right font-mono text-[11px] text-foreground">
+                              {fmt(totalLine)}
                             </td>
                             <td className="px-2 py-2 text-center">
                               {addFormData.items.length > 1 && (
@@ -435,24 +436,25 @@ export function Quotations() {
               </div>
 
               {/* Terms and Live calculation totals */}
-              <div className="grid grid-cols-3 gap-6 border-t border-border pt-4">
-                <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="grid grid-cols-4 gap-6">
+                <div className="col-span-3 flex flex-col gap-1.5">
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Terms &amp; Conditions</label>
                   <textarea rows={5} value={addFormData.terms_and_conditions} onChange={e => setAddFormData({...addFormData, terms_and_conditions: e.target.value})} className="w-full px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono leading-relaxed" />
                 </div>
                 
-                <div className="bg-muted/10 border border-border rounded p-4 flex flex-col gap-3 justify-center">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Subtotal:</span>
-                    <span className="font-mono">₹{liveSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                <div className="col-span-1 bg-secondary/10 border border-border rounded-lg p-4 flex flex-col justify-end gap-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-mono text-foreground font-medium">{fmt(liveSubtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Add IGST:</span>
-                    <span className="font-mono">₹{liveTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">GST (Total Tax)</span>
+                    <span className="font-mono text-foreground font-medium">{fmt(liveTax)}</span>
                   </div>
-                  <div className="flex justify-between text-sm font-bold text-foreground border-t border-border pt-2 mt-1">
-                    <span>Grand Total:</span>
-                    <span className="font-mono text-primary">₹{liveGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  <div className="h-px bg-border my-1"></div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-foreground font-bold uppercase tracking-wider text-[11px]">Grand Total</span>
+                    <span className="font-mono text-primary font-bold text-base">{fmt(liveGrandTotal)}</span>
                   </div>
                 </div>
               </div>

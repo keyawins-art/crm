@@ -19,6 +19,11 @@ function figmaAssetResolver() {
 export default defineConfig({
   server: {
     host: '0.0.0.0', // Expose to local network
+    proxy: {
+      '/crm': 'http://localhost:8000',
+      '/auth': 'http://localhost:8000',
+      '/dashboard': 'http://localhost:8000'
+    }
   },
   plugins: [
     figmaAssetResolver(),

@@ -1199,8 +1199,6 @@ def create_opportunitie(
     db.flush()
     log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
     db.commit()
-    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
-    db.commit() # secondary commit for audit if needed, but actually we should log before commit.
     db.refresh(obj)
     return obj
 
@@ -1223,9 +1221,7 @@ def list_opportunities(
 
     # RLS Enforcement
     if current_user.role and current_user.role.name == "Sales Executive":
-        if hasattr(Opportunity, 'owner_id'):
-            query = query.filter(Opportunity.owner_id == current_user.id)
-        elif hasattr(Opportunity, 'assigned_to_id'):
+        if hasattr(Opportunity, 'assigned_to_id'):
             if hasattr(Opportunity, 'created_by_id'):
                 from sqlalchemy import or_
                 query = query.filter(or_(Opportunity.assigned_to_id == current_user.id, Opportunity.created_by_id == current_user.id))

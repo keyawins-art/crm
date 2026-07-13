@@ -122,7 +122,7 @@ export function Deals() {
       stage: selectedDeal.stage || "prospecting",
       close_date: selectedDeal.close_date ? selectedDeal.close_date.split('T')[0] : "",
       account_id: selectedDeal.account_id || "",
-      lead_id: selectedDeal.contact_id || selectedDeal.lead_id || "", // fallback if mapped to contact
+      lead_id: selectedDeal.lead_id || "",
     });
     setIsEditModalOpen(true);
   };

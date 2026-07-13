@@ -255,7 +255,7 @@ Phone :- {client_phone}"""
         total_igst = 54000
         total_amount = 354000
 
-    items_table = Table(items_data, colWidths=[8*mm, 48*mm, 18*mm, 10*mm, 10*mm, 22*mm, 22*mm, 12*mm, 17*mm, 23*mm])
+    items_table = Table(items_data, colWidths=[10*mm, 50*mm, 20*mm, 10*mm, 10*mm, 20*mm, 20*mm, 15*mm, 15*mm, 20*mm])
     
     # Style for items table
     items_style = TableStyle([
@@ -264,7 +264,6 @@ Phone :- {client_phone}"""
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 8),
-        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,1), (-1,-1), 8),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),

@@ -459,7 +459,6 @@ export function SalesOrders() {
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-foreground">{fmt(total)}</span>
                   </div>
 
                   <p className="text-[11px] text-muted-foreground truncate">{order.customer} · {order.company}</p>
@@ -670,8 +669,8 @@ export function SalesOrders() {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-secondary/30 border-b border-border">
-                    {["SKU", "Product", "Category", "Qty", "Unit Price", "Discount", "Total"].map(h => (
-                      <th key={h} className={`px-5 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${h === "Total" ? "text-right" : "text-left"}`}>
+                    {["SKU", "Product", "Category", "Qty"].map(h => (
+                      <th key={h} className="px-5 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         {h}
                       </th>
                     ))}
@@ -700,57 +699,13 @@ export function SalesOrders() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5 font-mono text-muted-foreground">{item.qty}</td>
-                        <td className="px-5 py-3.5 font-mono text-muted-foreground">{fmt(item.unitPrice)}</td>
-                        <td className="px-5 py-3.5">
-                          {item.discount > 0 ? (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400">
-                              -{item.discount}%
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-right font-semibold text-foreground">
-                          {fmt(lineTotal)}
-                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
 
-              {/* Totals */}
-              <div className="flex justify-end px-5 py-4 border-t border-border">
-                <div className="w-56 space-y-2">
-                  {(() => {
-                    const subtotal = selected.items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-                    const discountAmt = selected.items.reduce((s, i) => s + i.qty * i.unitPrice * (i.discount / 100), 0);
-                    const total = subtotal - discountAmt;
-                    const tax = total * 0.1;
-                    const grand = total + tax;
-                    return (
-                      <>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Subtotal</span><span className="font-mono">{fmt(subtotal)}</span>
-                        </div>
-                        {discountAmt > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Discounts</span>
-                            <span className="font-mono text-green-400">-{fmt(discountAmt)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Tax (10%)</span><span className="font-mono">{fmt(tax)}</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t border-border">
-                          <span className="text-sm font-semibold text-foreground">Grand Total</span>
-                          <span className="text-lg font-bold text-primary font-mono">{fmt(grand)}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
+              {/* Totals removed */}
             </div>
 
             {/* Notes + Tags + Assignee */}

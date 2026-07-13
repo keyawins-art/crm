@@ -214,8 +214,7 @@ export function Products() {
 
                   <div className="mt-4 pt-4 border-t border-border flex justify-between items-center shrink-0">
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Price</p>
-                      <p className="font-bold text-foreground">{fmt(p.list_price)}</p>
+                      <p className="font-bold text-foreground capitalize">{p.category || "General"}</p>
                     </div>
                   </div>
                 </div>
@@ -278,9 +277,9 @@ export function Products() {
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs font-semibold text-foreground">List Price (₹) *</label>
-                          <input type="number" step="0.01" min="0" required value={formData.list_price || ""} onChange={e => setFormData({...formData, list_price: Number(e.target.value)})} className="px-3 py-2 bg-secondary/30 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground font-mono" />
+                        <div className="flex flex-col gap-1.5 hidden">
+                          <label className="text-xs font-semibold text-foreground">List Price (₹)</label>
+                          <input type="number" step="0.01" min="0" value={formData.list_price || 0} onChange={e => setFormData({...formData, list_price: Number(e.target.value)})} className="px-3 py-2 bg-secondary/30 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground font-mono" />
                         </div>
                       </div>
                       <div className="flex flex-col gap-1.5">
