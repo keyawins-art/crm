@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.models.user import User
 from app.models.opportunity import Quotation, QuotationStatus
-from app.models.sales_order import SalesOrder, SalesOrderStatus
+from app.models.sales_order import SalesOrder, SalesOrderStatus, SalesOrderItem, SalesOrderPriority, SalesOrderPaymentStatus
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.payment import Payment
 from app.models.audit import AuditAction
@@ -60,15 +60,34 @@ def convert_quotation_to_order(
     sales_order = SalesOrder(
         order_number=generate_unique_number("SO"),
         status=SalesOrderStatus.CONFIRMED,
+        priority=SalesOrderPriority.STANDARD,
+        order_date=date.today(),
         total_amount=quotation.grand_total,
         quotation_id=quotation.id,
-        account_id=quotation.opportunity.account_id if quotation.opportunity else None,
-        opportunity_id=quotation.opportunity_id
+        account_id=quotation.account_id or (quotation.opportunity.account_id if quotation.opportunity else None),
+        opportunity_id=quotation.opportunity_id,
+        assignee_id=current_user.id
     )
     db.add(sales_order)
+    db.flush()
+
+    # Copy line items
+    for q_item in quotation.items:
+        so_item = SalesOrderItem(
+            sales_order_id=sales_order.id,
+            product_id=q_item.product_id,
+            sku=q_item.product.code if q_item.product else None,
+            product_name=q_item.product.name if q_item.product else "Unknown Product",
+            category=q_item.product.category if q_item.product else None,
+            quantity=q_item.quantity,
+            unit_price=q_item.unit_price,
+            discount_percent=q_item.discount_percent,
+            total_price=q_item.total_price
+        )
+        db.add(so_item)
     
-    # Auto-update status to approved/accepted if it isn't
-    quotation.status = QuotationStatus.APPROVED
+    # Auto-update status to accepted if it isn't
+    quotation.status = QuotationStatus.ACCEPTED
     
     db.commit()
     db.refresh(sales_order)
@@ -163,6 +182,90 @@ def list_sales_orders(
         "pages": math.ceil(total / size) if size > 0 else 0
     }
 
+from pydantic import BaseModel
+class SalesOrderItemUpdate(BaseModel):
+    product_id: Optional[UUID] = None
+    sku: Optional[str] = None
+    product_name: str
+    category: Optional[str] = None
+    quantity: float
+    unit_price: float
+    discount_percent: float = 0.0
+
+class SalesOrderUpdate(BaseModel):
+    status: Optional[SalesOrderStatus] = None
+    priority: Optional[SalesOrderPriority] = None
+    order_date: Optional[date] = None
+    ship_date: Optional[date] = None
+    delivery_date: Optional[date] = None
+    payment_status: Optional[SalesOrderPaymentStatus] = None
+    payment_method: Optional[str] = None
+    ship_to: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[SalesOrderItemUpdate]] = None
+
+@router.get("/sales-orders/{id}", response_model=SalesOrderRead)
+def get_sales_order(
+    id: UUID,
+    current_user: User = Depends(require_permission("accounts:read")),
+    db: Session = Depends(get_db)
+):
+    so = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False).first()
+    if not so:
+        raise HTTPException(status_code=404, detail="Sales Order not found")
+    return so
+
+@router.put("/sales-orders/{id}", response_model=SalesOrderRead)
+def update_sales_order(
+    id: UUID,
+    update_data: SalesOrderUpdate,
+    current_user: User = Depends(require_permission("opportunities:update")),
+    db: Session = Depends(get_db)
+):
+    so = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False).first()
+    if not so:
+        raise HTTPException(status_code=404, detail="Sales Order not found")
+        
+    update_dict = update_data.model_dump(exclude_unset=True)
+    items_data = update_dict.pop('items', None)
+
+    for k, v in update_dict.items():
+        setattr(so, k, v)
+        
+    if items_data is not None:
+        # Delete existing items
+        db.query(SalesOrderItem).filter(SalesOrderItem.sales_order_id == so.id).delete()
+        
+        total_amount = 0.0
+        for item_data in items_data:
+            qty = float(item_data['quantity'])
+            rate = float(item_data['unit_price'])
+            discount_pct = float(item_data.get('discount_percent', 0.0))
+            
+            line_taxable = (qty * rate) * (1 - (discount_pct / 100.0))
+            # Sales Order items don't have tax_percent right now in schema, just total_price
+            total_amount += line_taxable
+            
+            so_item = SalesOrderItem(
+                sales_order_id=so.id,
+                product_id=item_data.get('product_id'),
+                sku=item_data.get('sku'),
+                product_name=item_data.get('product_name'),
+                category=item_data.get('category'),
+                quantity=qty,
+                unit_price=rate,
+                discount_percent=discount_pct,
+                total_price=line_taxable
+            )
+            db.add(so_item)
+            
+        so.total_amount = total_amount
+        
+    db.commit()
+    db.refresh(so)
+    return so
+
+
 
 @router.get("/invoices", response_model=PaginatedResponse[InvoiceRead])
 def list_invoices(
@@ -181,3 +284,29 @@ def list_invoices(
         "total": total,
         "pages": math.ceil(total / size) if size > 0 else 0
     }
+from fastapi.responses import StreamingResponse
+
+@router.get("/sales-orders/{id}/pdf")
+def get_sales_order_pdf(
+    id: UUID,
+    current_user: User = Depends(require_permission("opportunities:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False)
+
+    if current_user.role and current_user.role.name == "Sales Executive":
+        from sqlalchemy import or_
+        query = query.filter(or_(SalesOrder.assignee_id == current_user.id, SalesOrder.opportunity.has(assigned_to_id=current_user.id)))
+
+    obj = query.first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Sales Order not found")
+        
+    from app.services.pdf_generator import generate_sales_order_pdf
+    pdf_buffer = generate_sales_order_pdf(obj)
+    
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=SalesOrder_{obj.order_number}.pdf"}
+    )

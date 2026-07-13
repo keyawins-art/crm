@@ -35,7 +35,7 @@ class Task(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     due_date = Column(DateTime(timezone=True), nullable=True)
     priority = Column(SAEnum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
     status = Column(SAEnum(TaskStatus), default=TaskStatus.PENDING, nullable=False)
-    task_type = Column(SAEnum(TaskType), default=TaskType.TASK, nullable=False)
+    task_type = Column(SAEnum(TaskType, values_callable=lambda obj: [e.value for e in obj]), default=TaskType.TASK, nullable=False)
     
     reminder_time = Column(DateTime(timezone=True), nullable=True)
     

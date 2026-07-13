@@ -261,7 +261,20 @@ export function Products() {
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs font-semibold text-foreground">Category</label>
-                          <input value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="px-3 py-2 bg-secondary/30 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground" placeholder="e.g. hardware" />
+                          <select 
+                            value={formData.category} 
+                            onChange={e => setFormData({...formData, category: e.target.value})} 
+                            className="px-3 py-2 bg-secondary/30 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground"
+                          >
+                            <option value="">Select Category...</option>
+                            <option value="hardware">Hardware</option>
+                            <option value="software">Software</option>
+                            <option value="service">Service</option>
+                            <option value="subscription">Subscription</option>
+                            <option value="consulting">Consulting</option>
+                            <option value="support">Support</option>
+                            <option value="other">Other</option>
+                          </select>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-4">

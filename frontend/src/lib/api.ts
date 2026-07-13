@@ -147,6 +147,7 @@ export const salesAPI = {
   createSalesOrder: (data: any) => api.post("/crm/sales-orders", data),
   updateSalesOrder: (id: string, data: any) => api.put(`/crm/sales-orders/${id}`, data),
   deleteSalesOrder: (id: string) => api.delete(`/crm/sales-orders/${id}`),
+  downloadPdf: (id: string) => api.get(`/crm/sales-orders/${id}/pdf`, { responseType: 'blob' }),
   invoices: (page = 1, size = 20) => api.get(`/crm/invoices?page=${page}&size=${size}`),
   convertToOrder: (quotationId: string) => api.post(`/crm/quotations/${quotationId}/convert-to-order`),
   convertToInvoice: (orderId: string) => api.post(`/crm/sales-orders/${orderId}/convert-to-invoice`),

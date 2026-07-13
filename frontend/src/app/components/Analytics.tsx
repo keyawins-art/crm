@@ -92,7 +92,7 @@ export function Analytics() {
 
       // Process KPIs
       const totalLeads = leads.length;
-      const wonOpps = opps.filter((o: any) => o.stage === 'Closed Won');
+      const wonOpps = opps.filter((o: any) => o.stage === 'closed_won');
       const totalDeals = wonOpps.length;
       const totalRevenue = wonOpps.reduce((sum: number, o: any) => sum + (Number(o.amount) || 0), 0);
       const avgDeal = totalDeals > 0 ? Math.round(totalRevenue / totalDeals) : 0;
@@ -119,11 +119,11 @@ export function Analytics() {
         if (o.created_at) {
           const d = new Date(o.created_at);
           const m = months[d.getMonth()];
-          if (o.stage === 'Closed Won') {
+          if (o.stage === 'closed_won') {
             revMap[m].revenue += Number(o.amount) || 0;
             revMap[m].deals++;
             winLossMap[m].won++;
-          } else if (o.stage === 'Closed Lost') {
+          } else if (o.stage === 'closed_lost') {
             winLossMap[m].lost++;
           }
         }
@@ -152,9 +152,9 @@ export function Analytics() {
       // Process Funnel
       const funnelStages = [
         { stage: "Leads", count: leads.length, rate: 100 },
-        { stage: "Qualification", count: opps.filter((o: any) => ['Qualification', 'Proposal', 'Negotiation', 'Closed Won'].includes(o.stage)).length, rate: 0 },
-        { stage: "Proposal", count: opps.filter((o: any) => ['Proposal', 'Negotiation', 'Closed Won'].includes(o.stage)).length, rate: 0 },
-        { stage: "Negotiation", count: opps.filter((o: any) => ['Negotiation', 'Closed Won'].includes(o.stage)).length, rate: 0 },
+        { stage: "Qualification", count: opps.filter((o: any) => ['qualification', 'proposal', 'negotiation', 'closed_won'].includes(o.stage)).length, rate: 0 },
+        { stage: "Proposal", count: opps.filter((o: any) => ['proposal', 'negotiation', 'closed_won'].includes(o.stage)).length, rate: 0 },
+        { stage: "Negotiation", count: opps.filter((o: any) => ['negotiation', 'closed_won'].includes(o.stage)).length, rate: 0 },
         { stage: "Closed Won", count: wonOpps.length, rate: 0 }
       ];
       funnelStages.forEach(f => {
@@ -169,11 +169,11 @@ export function Analytics() {
       });
       opps.forEach((o: any) => {
         if (o.assigned_to_id && userStats[o.assigned_to_id]) {
-          if (o.stage === 'Closed Won') {
+          if (o.stage === 'closed_won') {
             userStats[o.assigned_to_id].revenue += Number(o.amount) || 0;
             userStats[o.assigned_to_id].deals++;
             userStats[o.assigned_to_id].won++;
-          } else if (o.stage === 'Closed Lost') {
+          } else if (o.stage === 'closed_lost') {
             userStats[o.assigned_to_id].lost++;
           }
         }
@@ -360,7 +360,7 @@ export function Analytics() {
       </div>
 
       {/* Charts row 2 */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Conversion funnel */}
         <div className="rounded border border-border bg-card p-4">
           <p className="text-xs font-semibold text-foreground mb-1">Conversion Funnel</p>

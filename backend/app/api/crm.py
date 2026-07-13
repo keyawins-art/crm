@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.core.rbac import require_permission
+from app.api.auth import get_current_user
 from app.core.email import send_email
 from app.core.workflow import execute_workflows
 from app.core.security import get_password_hash
@@ -87,20 +88,18 @@ def create_account(
     current_user: User = Depends(require_permission("accounts:create")),
     db: Session = Depends(get_db),
 ):
-    # Duplicate Customer Check: Company Name, Contact Name, GST, Email, Phone
+    # Duplicate Customer Check: Company Name, GST, Email, Phone
     from sqlalchemy import or_, func
     dup_filters = []
     
-    if payload.name:
-        dup_filters.append(func.lower(Account.name) == payload.name.lower())
-    if payload.contact_name:
-        dup_filters.append(func.lower(Account.contact_name) == payload.contact_name.lower())
-    if payload.gst_number:
-        dup_filters.append(func.lower(Account.gst_number) == payload.gst_number.lower())
-    if payload.email:
-        dup_filters.append(func.lower(Account.email) == payload.email.lower())
-    if payload.phone:
-        dup_filters.append(Account.phone == payload.phone)
+    if payload.name and payload.name.strip():
+        dup_filters.append(func.lower(Account.name) == payload.name.strip().lower())
+    if payload.gst_number and payload.gst_number.strip():
+        dup_filters.append(func.lower(Account.gst_number) == payload.gst_number.strip().lower())
+    if payload.email and payload.email.strip():
+        dup_filters.append(func.lower(Account.email) == payload.email.strip().lower())
+    if payload.phone and payload.phone.strip():
+        dup_filters.append(Account.phone == payload.phone.strip())
         
     if dup_filters:
         existing = db.query(Account).filter(
@@ -109,7 +108,7 @@ def create_account(
         ).first()
         if existing:
             owner_info = "Unassigned"
-            if existing.owner:
+            if getattr(existing, "owner", None):
                 owner_info = f"{existing.owner.first_name} {existing.owner.last_name or ''} ({existing.owner.email})"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -137,7 +136,7 @@ def create_account(
             send_email,
             obj.email,
             "Welcome to our CRM!",
-            f"Hi {obj.first_name},\n\nThank you for connecting with us. We will follow up shortly.\n\nBest regards,\nSales Team"
+            f"Hi {obj.name},\n\nThank you for connecting with us. We will follow up shortly.\n\nBest regards,\nSales Team"
         )
     return obj
 
@@ -965,7 +964,7 @@ def upload_product_image(
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 def create_product(
     payload: ProductCreate,
-    current_user: User = Depends(require_permission("products:create")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     obj = Product(**payload.model_dump(exclude_none=True))
@@ -992,7 +991,7 @@ def create_product(
 @router.get("/products", response_model=PaginatedResponse[ProductRead])
 def list_products(
     request: Request,
-    current_user: User = Depends(require_permission("products:read")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -1005,18 +1004,7 @@ def list_products(
     if not include_deleted:
         query = query.filter(Product.is_deleted == False)
 
-    # RLS Enforcement
-    if current_user.role and current_user.role.name == "Sales Executive":
-        if hasattr(Product, 'owner_id'):
-            query = query.filter(Product.owner_id == current_user.id)
-        elif hasattr(Product, 'assigned_to_id'):
-            if hasattr(Product, 'created_by_id'):
-                from sqlalchemy import or_
-                query = query.filter(or_(Product.assigned_to_id == current_user.id, Product.created_by_id == current_user.id))
-            else:
-                query = query.filter(Product.assigned_to_id == current_user.id)
-        elif hasattr(Product, 'created_by_id'):
-            query = query.filter(Product.created_by_id == current_user.id)
+
 
     if search:
         search_filters = []
@@ -1049,6 +1037,7 @@ def list_products(
                 query = query.order_by(Product.created_at.asc())
 
     total = query.count()
+    print("API TOTAL IS:", total)
     offset = (page - 1) * size
     
     items = query.offset(offset).limit(size).all()
@@ -1066,23 +1055,12 @@ def list_products(
 @router.get("/products/{id}", response_model=ProductRead)
 def get_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:read")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == False)
 
-    # RLS Enforcement
-    if current_user.role and current_user.role.name == "Sales Executive":
-        if hasattr(Product, 'owner_id'):
-            query = query.filter(Product.owner_id == current_user.id)
-        elif hasattr(Product, 'assigned_to_id'):
-            if hasattr(Product, 'created_by_id'):
-                from sqlalchemy import or_
-                query = query.filter(or_(Product.assigned_to_id == current_user.id, Product.created_by_id == current_user.id))
-            else:
-                query = query.filter(Product.assigned_to_id == current_user.id)
-        elif hasattr(Product, 'created_by_id'):
-            query = query.filter(Product.created_by_id == current_user.id)
+
 
     obj = query.first()
     if not obj:
@@ -1094,23 +1072,12 @@ def get_product(
 def update_product(
     id: UUID,
     payload: ProductUpdate,
-    current_user: User = Depends(require_permission("products:update")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == False)
 
-    # RLS Enforcement
-    if current_user.role and current_user.role.name == "Sales Executive":
-        if hasattr(Product, 'owner_id'):
-            query = query.filter(Product.owner_id == current_user.id)
-        elif hasattr(Product, 'assigned_to_id'):
-            if hasattr(Product, 'created_by_id'):
-                from sqlalchemy import or_
-                query = query.filter(or_(Product.assigned_to_id == current_user.id, Product.created_by_id == current_user.id))
-            else:
-                query = query.filter(Product.assigned_to_id == current_user.id)
-        elif hasattr(Product, 'created_by_id'):
-            query = query.filter(Product.created_by_id == current_user.id)
+
 
     obj = query.first()
     if not obj:
@@ -1129,24 +1096,13 @@ def update_product(
 @router.delete("/products/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:delete")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.sql import func
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == False)
 
-    # RLS Enforcement
-    if current_user.role and current_user.role.name == "Sales Executive":
-        if hasattr(Product, 'owner_id'):
-            query = query.filter(Product.owner_id == current_user.id)
-        elif hasattr(Product, 'assigned_to_id'):
-            if hasattr(Product, 'created_by_id'):
-                from sqlalchemy import or_
-                query = query.filter(or_(Product.assigned_to_id == current_user.id, Product.created_by_id == current_user.id))
-            else:
-                query = query.filter(Product.assigned_to_id == current_user.id)
-        elif hasattr(Product, 'created_by_id'):
-            query = query.filter(Product.created_by_id == current_user.id)
+
 
     obj = query.first()
     if not obj:

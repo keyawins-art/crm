@@ -8,6 +8,12 @@ export function Settings() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [user, setUser] = useState<any>(null);
 
+  // Form states
+  const [theme, setTheme] = useState("dark");
+  const [language, setLanguage] = useState("English (US)");
+  const [timezone, setTimezone] = useState("Pacific Time (PT)");
+  const [currency, setCurrency] = useState("INR (₹)");
+
   useEffect(() => {
     setUser(getUser());
   }, []);
@@ -134,13 +140,17 @@ export function Settings() {
                 <div>
                   <h3 className="text-lg font-medium text-foreground border-b border-border pb-2 mb-4">Appearance</h3>
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="border border-primary bg-primary/5 rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3">
+                    <div 
+                      onClick={() => setTheme("dark")}
+                      className={`border ${theme === 'dark' ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'} rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-primary/50 transition-colors`}>
                       <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
                         <Moon size={18} className="text-foreground" />
                       </div>
                       <span className="text-sm font-medium text-foreground">Dark Theme</span>
                     </div>
-                    <div className="border border-border bg-secondary/30 rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-muted-foreground transition-colors opacity-50">
+                    <div 
+                      onClick={() => setTheme("light")}
+                      className={`border ${theme === 'light' ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'} rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-muted-foreground transition-colors opacity-50`}>
                       <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
                         <Sun size={18} className="text-foreground" />
                       </div>
@@ -155,7 +165,11 @@ export function Settings() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Language</label>
-                      <select className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground">
+                      <select 
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground"
+                      >
                         <option>English (US)</option>
                         <option>Spanish (ES)</option>
                         <option>French (FR)</option>
@@ -163,7 +177,11 @@ export function Settings() {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timezone</label>
-                      <select className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground">
+                      <select 
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground"
+                      >
                         <option>Pacific Time (PT)</option>
                         <option>Eastern Time (ET)</option>
                         <option>Coordinated Universal Time (UTC)</option>
@@ -172,7 +190,11 @@ export function Settings() {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currency</label>
-                      <select className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground">
+                      <select 
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm focus:outline-none focus:border-primary text-foreground"
+                      >
                         <option>INR (₹)</option>
                         <option>USD ($)</option>
                         <option>EUR (€)</option>
