@@ -11,6 +11,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
 import { salesAPI } from "../../lib/api";
+import { getUser } from "../../lib/auth";
 
 // ── Types ────────────────────────────────────────────────────────
 type OrderStatus = "draft" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
@@ -50,6 +51,7 @@ type Order = {
   paymentStatus: "Pending" | "Paid" | "Overdue";
   paymentMethod: string;
   tags?: string[];
+  assignee_id?: string;
 };
 
 // ── Config ───────────────────────────────────────────────────────
@@ -120,6 +122,13 @@ export function SalesOrders() {
   const [editForm, setEditForm]       = useState<Partial<Order>>({});
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const currentUser = getUser();
+  const canEditOrder = (order: Order) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin' || currentUser.role === 'support') return true;
+    return order.assignee_id === currentUser.id;
+  };
+
   const statuses: StatusFilter[] = ["All", "draft", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 
   const loadOrders = async () => {
@@ -156,6 +165,7 @@ export function SalesOrders() {
           notes: o.notes || "",
           assignee: o.assignee ? `${o.assignee.first_name} ${o.assignee.last_name}` : "Unassigned",
           assigneeInitials: o.assignee ? o.assignee.first_name[0] : "U",
+          assignee_id: o.assignee_id,
           paymentStatus: o.payment_status || "Pending",
           paymentMethod: o.payment_method || "—",
           tags: o.tags || [],
@@ -545,11 +555,13 @@ export function SalesOrders() {
                       className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                       <Download size={14} />
                     </button>
-                    <button 
-                      onClick={handleEditOrder}
-                      className="px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors">
-                      Edit Order
-                    </button>
+                    {canEditOrder(selected) && (
+                      <button 
+                        onClick={handleEditOrder}
+                        className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary/80 hover:bg-secondary text-foreground text-xs font-medium rounded-lg transition-colors border border-border">
+                        <FileText size={13} /> Edit Order
+                      </button>
+                    )}
                     <button className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                       <MoreHorizontal size={14} />
                     </button>
@@ -750,28 +762,28 @@ export function SalesOrders() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-3 pt-1">
-              {selected.status === "draft" && (
+              {canEditOrder(selected) && selected.status === "draft" && (
                 <button 
                   onClick={() => handleUpdateStatus('confirmed')}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors">
                   <CheckCircle2 size={13} /> Confirm Order
                 </button>
               )}
-              {selected.status === "confirmed" && (
+              {canEditOrder(selected) && selected.status === "confirmed" && (
                 <button 
                   onClick={() => handleUpdateStatus('processing')}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors">
                   <RefreshCw size={13} /> Mark Processing
                 </button>
               )}
-              {selected.status === "processing" && (
+              {canEditOrder(selected) && selected.status === "processing" && (
                 <button 
                   onClick={() => handleUpdateStatus('shipped')}
                   className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl hover:opacity-90 transition-colors" style={{ background: "#f59e0b", color: "#fff" }}>
                   <Truck size={13} /> Mark as Shipped
                 </button>
               )}
-              {selected.status === "shipped" && (
+              {canEditOrder(selected) && selected.status === "shipped" && (
                 <button 
                   onClick={() => handleUpdateStatus('delivered')}
                   className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl hover:opacity-90 transition-colors" style={{ background: "#00d4aa", color: "#07090f" }}>
@@ -784,7 +796,7 @@ export function SalesOrders() {
                 className="flex items-center gap-2 px-4 py-2 border border-border text-muted-foreground text-xs font-semibold rounded-xl hover:text-foreground hover:border-border/80 transition-colors">
                 <Download size={13} /> {isDownloading ? "Exporting..." : "Export PDF"}
               </button>
-              {selected.status !== "cancelled" && selected.status !== "delivered" && (
+              {canEditOrder(selected) && selected.status !== "cancelled" && selected.status !== "delivered" && (
                 <button 
                   onClick={() => handleUpdateStatus('cancelled')}
                   className="flex items-center gap-2 px-4 py-2 border border-destructive/30 text-destructive text-xs font-semibold rounded-xl hover:bg-destructive/10 transition-colors ml-auto">
