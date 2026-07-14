@@ -17,6 +17,7 @@ sleep 2
 # Start the CRM using the existing start script
 if [ -f "./start.sh" ]; then
     echo "Restarting CRM..."
+    chmod +x start.sh
     ./start.sh
 else
     echo "Error: ./start.sh not found. Please run this from the CRM root directory."
