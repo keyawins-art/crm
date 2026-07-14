@@ -22,6 +22,7 @@ export function Quotations() {
   const [pdfViewUrl, setPdfViewUrl] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeDescEditIndex, setActiveDescEditIndex] = useState<number | null>(null);
   
   const getInitialFormState = () => ({
     quote_number: `QT-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
@@ -474,7 +475,22 @@ export function Quotations() {
                               </select>
                             </td>
                             <td className="px-3 py-2">
-                              <input value={item.description} onChange={e => handleItemChange(index, "description", e.target.value)} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-foreground focus:outline-none focus:border-primary" placeholder="e.g. Capacity: 1kg - 25kg" />
+                              <div className="flex items-center gap-1">
+                                <input 
+                                  value={item.description} 
+                                  readOnly
+                                  onClick={() => setActiveDescEditIndex(index)}
+                                  className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-foreground cursor-pointer focus:outline-none focus:border-primary truncate" 
+                                  placeholder="Click to edit details..." 
+                                />
+                                <button 
+                                  type="button" 
+                                  onClick={() => setActiveDescEditIndex(index)}
+                                  className="text-primary hover:text-primary/80 shrink-0 p-1"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                              </div>
                             </td>
                             <td className="px-3 py-2">
                               <input type="number" required min="1" value={item.quantity} onChange={e => handleItemChange(index, "quantity", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
@@ -498,6 +514,39 @@ export function Quotations() {
                       })}
                     </tbody>
                   </table>
+
+                  {/* Description Edit Modal */}
+                  {activeDescEditIndex !== null && (
+                    <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+                      <div className="bg-card w-full max-w-2xl rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-4 py-3 border-b border-border bg-muted/30 flex justify-between items-center">
+                          <h3 className="font-semibold text-foreground">Edit Item Description / Details</h3>
+                          <button type="button" onClick={() => setActiveDescEditIndex(null)} className="text-muted-foreground hover:text-foreground">
+                            ✕
+                          </button>
+                        </div>
+                        <div className="p-4">
+                          <textarea
+                            autoFocus
+                            className="w-full h-64 px-3 py-2 bg-secondary/30 border border-border rounded-md text-sm text-foreground focus:outline-none focus:border-primary resize-none"
+                            placeholder="Enter technical specifications and details here..."
+                            value={addFormData.items[activeDescEditIndex].description}
+                            onChange={(e) => handleItemChange(activeDescEditIndex, "description", e.target.value)}
+                          />
+                        </div>
+                        <div className="px-4 py-3 border-t border-border bg-muted/30 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setActiveDescEditIndex(null)}
+                            className="px-4 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
 
