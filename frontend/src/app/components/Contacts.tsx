@@ -199,7 +199,7 @@ export function Contacts() {
                       <p className="text-[10px] text-muted-foreground">{c.department}</p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
+                      {c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : "—"}
                     </td>
                     <td className="px-3 py-2.5">
                       <button className="text-muted-foreground hover:text-foreground transition-colors">

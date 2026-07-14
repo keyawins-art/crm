@@ -245,7 +245,7 @@ export function Customer360Modal({ account, onClose, users }: Props) {
                         <div key={q.id} className="p-3 border border-border rounded bg-secondary/10 flex justify-between items-center">
                           <div>
                             <p className="text-sm font-semibold text-foreground">{q.quote_number}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">₹{q.grand_total} • Valid until {q.valid_until ? new Date(q.valid_until).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">₹{q.grand_total} • Valid until {q.valid_until ? new Date(q.valid_until).toLocaleDateString('en-GB') : 'N/A'}</p>
                           </div>
                           <span className={`px-2 py-1 text-[10px] rounded uppercase font-bold ${q.status === 'accepted' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{q.status}</span>
                         </div>
@@ -295,7 +295,7 @@ export function Customer360Modal({ account, onClose, users }: Props) {
                       <div key={doc.id} className="p-4 border border-border rounded flex flex-col items-center justify-center text-center bg-secondary/10 hover:bg-secondary/20 cursor-pointer">
                         <FileIcon size={24} className="text-primary mb-2" />
                         <p className="text-xs font-medium text-foreground w-full truncate" title={doc.title || doc.filename}>{doc.title || doc.filename}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(doc.created_at).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(doc.created_at).toLocaleDateString('en-GB')}</p>
                       </div>
                     ))}
                   </div>

@@ -107,7 +107,7 @@ export function Tickets() {
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground capitalize">{ticket.category || "—"}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : "—"}
+                      {ticket.created_at ? new Date(ticket.created_at).toLocaleDateString('en-GB') : "—"}
                     </td>
                     <td className="px-3 py-2.5">
                       <button className="text-muted-foreground hover:text-foreground transition-colors">

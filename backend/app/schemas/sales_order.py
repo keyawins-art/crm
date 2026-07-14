@@ -37,7 +37,30 @@ class SalesOrderItemRead(BaseModel):
     unit_price: float
     discount_percent: float
     total_price: float
+    description: Optional[str] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AccountMinimal(BaseModel):
+    id: UUID
+    name: str
+    industry: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    billing_city: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class OpportunityMinimal(BaseModel):
+    id: UUID
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class UserMinimal(BaseModel):
+    id: UUID
+    email: str
+    first_name: str
+    last_name: str
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -52,5 +75,9 @@ class SalesOrderRead(SalesOrderBase):
     
     # We can include nested relationships if needed, e.g. for the frontend
     items: List[SalesOrderItemRead] = []
+    
+    account: Optional[AccountMinimal] = None
+    opportunity: Optional[OpportunityMinimal] = None
+    assignee: Optional[UserMinimal] = None
 
     model_config = ConfigDict(from_attributes=True)

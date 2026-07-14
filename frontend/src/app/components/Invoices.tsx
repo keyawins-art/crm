@@ -94,10 +94,10 @@ export function Invoices() {
                     <td className="px-3 py-2.5 font-mono font-semibold text-foreground">{fmt(inv.total_amount)}</td>
                     <td className="px-3 py-2.5 font-mono text-muted-foreground">{fmt(inv.amount_paid)}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : "—"}
+                      {inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-GB') : "—"}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "—"}
+                      {inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : "—"}
                     </td>
                     <td className="px-3 py-2.5">
                       <button className="flex items-center gap-1 px-2 py-1 text-[10px] text-primary border border-primary/30 rounded hover:bg-primary/10 transition-colors">

@@ -76,6 +76,7 @@ class SalesOrderItem(Base, UUIDMixin, TimestampMixin):
     unit_price = Column(Numeric(15, 2), nullable=False)
     discount_percent = Column(Numeric(5, 2), default=0, nullable=False)
     total_price = Column(Numeric(15, 2), nullable=False)
+    description = Column(Text, nullable=True)
 
     sales_order = relationship("SalesOrder", back_populates="items")
     product = relationship("Product", lazy="joined")

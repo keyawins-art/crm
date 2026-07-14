@@ -70,7 +70,7 @@ export function Dashboard() {
         // Transform tasks
         const tasks = tasksRes.data.items.filter((t: any) => t.status !== "completed").slice(0, 5).map((t: any) => ({
           title: t.title,
-          due: t.due_date ? new Date(t.due_date).toLocaleDateString() : "No date",
+          due: t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB') : "No date",
           priority: t.priority,
           contact: null
         }));

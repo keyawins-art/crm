@@ -254,7 +254,7 @@ export function Deals() {
                         <div className="flex items-center justify-between mt-2.5">
                           <div className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
                             <Calendar size={9} />
-                            {deal.close_date ? new Date(deal.close_date).toLocaleDateString() : "No date"}
+                            {deal.close_date ? new Date(deal.close_date).toLocaleDateString('en-GB') : "No date"}
                           </div>
                         </div>
                       </button>
@@ -300,7 +300,7 @@ export function Deals() {
                 </select>
               </div>
               <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-mono mt-2">
-                <span><Calendar size={10} className="inline mr-1" />Close: {selectedDeal.close_date ? new Date(selectedDeal.close_date).toLocaleDateString() : "—"}</span>
+                <span><Calendar size={10} className="inline mr-1" />Close: {selectedDeal.close_date ? new Date(selectedDeal.close_date).toLocaleDateString('en-GB') : "—"}</span>
                 <span><TrendingUp size={10} className="inline mr-1" />{selectedDeal.probability}% probability</span>
                 <span>Weighted: <span className="text-primary">{fmt((selectedDeal.amount || 0) * (selectedDeal.probability || 0) / 100)}</span></span>
               </div>

@@ -110,7 +110,7 @@ export function Deal360Modal({ deal, onClose }: Props) {
           <div>
             <h2 className="text-xl font-bold text-foreground">{deal.name}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {fmt(deal.amount)} • Stage: {deal.stage.replace("_", " ")} • Close Date: {new Date(deal.close_date).toLocaleDateString()}
+              {fmt(deal.amount)} • Stage: {deal.stage.replace("_", " ")} • Close Date: {new Date(deal.close_date).toLocaleDateString('en-GB')}
             </p>
           </div>
           <button onClick={onClose} className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors">
@@ -211,7 +211,7 @@ export function Deal360Modal({ deal, onClose }: Props) {
                         <div key={q.id} className="p-3 border border-border rounded bg-secondary/10 flex justify-between items-center">
                           <div>
                             <p className="text-sm font-semibold text-foreground">{q.quote_number}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">₹{q.grand_total} • Valid until {q.valid_until ? new Date(q.valid_until).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">₹{q.grand_total} • Valid until {q.valid_until ? new Date(q.valid_until).toLocaleDateString('en-GB') : 'N/A'}</p>
                           </div>
                           <span className={`px-2 py-1 text-[10px] rounded uppercase font-bold ${q.status === 'accepted' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{q.status}</span>
                         </div>

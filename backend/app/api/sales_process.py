@@ -82,7 +82,8 @@ def convert_quotation_to_order(
             quantity=q_item.quantity,
             unit_price=q_item.unit_price,
             discount_percent=q_item.discount_percent,
-            total_price=q_item.total_price
+            total_price=q_item.total_price,
+            description=q_item.description
         )
         db.add(so_item)
     
@@ -293,10 +294,6 @@ def get_sales_order_pdf(
     db: Session = Depends(get_db),
 ):
     query = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False)
-
-    if current_user.role and current_user.role.name == "Sales Executive":
-        from sqlalchemy import or_
-        query = query.filter(or_(SalesOrder.assignee_id == current_user.id, SalesOrder.opportunity.has(assigned_to_id=current_user.id)))
 
     obj = query.first()
     if not obj:

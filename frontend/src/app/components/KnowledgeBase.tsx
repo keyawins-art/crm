@@ -69,7 +69,7 @@ export function KnowledgeBase() {
                 </p>
                 <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    {a.updated_at ? new Date(a.updated_at).toLocaleDateString() : '—'}
+                    {a.updated_at ? new Date(a.updated_at).toLocaleDateString('en-GB') : '—'}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {a.status}

@@ -248,12 +248,12 @@ export function Leads() {
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                           <Calendar size={11} />
-                          {lead.next_followup_date ? new Date(lead.next_followup_date).toLocaleDateString() : "—"}
+                          {lead.next_followup_date ? new Date(lead.next_followup_date).toLocaleDateString('en-GB') : "—"}
                         </div>
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-col gap-0.5 font-mono text-[11px] text-muted-foreground">
-                          <span>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "—"}</span>
+                          <span>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-GB') : "—"}</span>
                           <span className="text-[9px] opacity-70">{lead.created_at ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
                         </div>
                       </td>

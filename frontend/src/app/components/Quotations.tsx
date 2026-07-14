@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, FileText, Send, Download, Eye } from "lucide-react";
+import { Search, Plus, MoreHorizontal, FileText, Send, Download, Eye, Edit, Trash } from "lucide-react";
 import { quotationsAPI, salesAPI, accountsAPI, productsAPI, opportunitiesAPI } from "../../lib/api";
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -21,6 +21,7 @@ export function Quotations() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [pdfViewUrl, setPdfViewUrl] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   const getInitialFormState = () => ({
     quote_number: `QT-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
@@ -114,9 +115,10 @@ export function Quotations() {
       await salesAPI.convertToOrder(id);
       loadQuotations();
       alert("Converted successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to convert to order:", err);
-      alert("Failed to convert.");
+      const msg = err.response?.data?.detail || "Failed to convert.";
+      alert(msg);
     }
   };
 
@@ -129,13 +131,51 @@ export function Quotations() {
       // Filter out invalid items
       payload.items = payload.items.filter(item => item.product_id !== "");
       
-      await quotationsAPI.create(payload);
+      if (editingId) {
+        await quotationsAPI.update(editingId, payload);
+      } else {
+        await quotationsAPI.create(payload);
+      }
       setIsAddModalOpen(false);
+      setEditingId(null);
       setAddFormData(getInitialFormState());
       loadQuotations();
     } catch (err) {
-      console.error("Failed to create quotation:", err);
-      alert("Failed to create quotation");
+      console.error("Failed to save quotation:", err);
+      alert("Failed to save quotation");
+    }
+  };
+
+  const handleEditClick = (q: any) => {
+    setEditingId(q.id);
+    setAddFormData({
+      quote_number: q.quote_number || "",
+      subject: q.subject || "",
+      status: q.status || "draft",
+      account_id: q.account_id || "",
+      opportunity_id: q.opportunity_id || "",
+      billing_address: q.billing_address || "",
+      shipping_address: q.shipping_address || "",
+      terms_and_conditions: q.terms_and_conditions || "",
+      items: q.items && q.items.length > 0 ? q.items.map((i: any) => ({
+        product_id: i.product_id || "",
+        description: i.description || "",
+        quantity: i.quantity || 1,
+        unit_price: i.unit_price || 0,
+        tax_percent: i.tax_percent || 18
+      })) : [{ product_id: "", description: "", quantity: 1, unit_price: 0, tax_percent: 18 }]
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleDeleteQuotation = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this quotation?")) return;
+    try {
+      await quotationsAPI.delete(id);
+      loadQuotations();
+    } catch (err: any) {
+      console.error("Failed to delete quotation:", err);
+      alert(err.response?.data?.detail || "Failed to delete quotation.");
     }
   };
 
@@ -238,7 +278,7 @@ export function Quotations() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] font-mono text-muted-foreground mr-3">{total} quotations</span>
-          <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors">
+          <button onClick={() => { setEditingId(null); setAddFormData(getInitialFormState()); setIsAddModalOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors">
             <Plus size={14} /> New Quotation
           </button>
         </div>
@@ -277,29 +317,55 @@ export function Quotations() {
                     <td className="px-3 py-2.5 text-foreground font-medium">{q.account ? q.account.name : "—"}</td>
                     <td className="px-3 py-2.5 text-foreground">{q.subject}</td>
                     <td className="px-3 py-2.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
-                        style={{ color: st.color, background: st.bg }}>
-                        {q.status?.replace("_", " ")}
-                      </span>
+                      <select 
+                        value={q.status || "draft"}
+                        disabled={q.status === 'accepted'}
+                        onChange={async (e) => {
+                          try {
+                            await quotationsAPI.update(q.id, { status: e.target.value });
+                            loadQuotations();
+                          } catch (err) {
+                            console.error("Failed to update status:", err);
+                            alert("Failed to update status");
+                          }
+                        }}
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium capitalize border-0 appearance-none outline-none focus:ring-1 focus:ring-primary/50 ${q.status === 'accepted' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
+                        style={{ color: st.color, background: st.bg }}
+                      >
+                        {Object.keys(statusConfig).map(s => (
+                          <option key={s} value={s} className="bg-background text-foreground capitalize">
+                            {s.replace("_", " ")}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                      {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
+                      {q.created_at ? new Date(q.created_at).toLocaleDateString('en-GB') : "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <button onClick={() => handleViewQuotation(q.id)} title="View Details" className="text-primary hover:text-primary/80 mr-2 transition-colors">
-                        <Eye size={14} />
-                      </button>
-                      <button onClick={() => handleDownloadPDF(q.id, q.quote_number)} title="Download PDF" className="text-blue-500 hover:text-blue-400 mr-2 transition-colors">
-                        <Download size={14} />
-                      </button>
-                      {q.status === 'accepted' ? (
-                        <button onClick={() => handleConvertToOrder(q.id)} title="Convert to Order" className="text-emerald-500 hover:text-emerald-400 mr-2">
-                          <Send size={14} />
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleViewQuotation(q.id)} title="View Details" className="text-primary hover:text-primary/80 transition-colors p-1">
+                          <Eye size={14} />
                         </button>
-                      ) : null}
-                      <button className="text-muted-foreground hover:text-foreground">
-                        <MoreHorizontal size={14} />
-                      </button>
+                        {q.status !== 'accepted' && (
+                          <button onClick={() => handleEditClick(q)} title="Edit Quotation" className="text-amber-500 hover:text-amber-400 transition-colors p-1">
+                            <Edit size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => handleDownloadPDF(q.id, q.quote_number)} title="Download PDF" className="text-blue-500 hover:text-blue-400 transition-colors p-1">
+                          <Download size={14} />
+                        </button>
+                        {q.status === 'accepted' ? (
+                          <button onClick={() => handleConvertToOrder(q.id)} title="Convert to Order" className="text-emerald-500 hover:text-emerald-400 p-1">
+                            <Send size={14} />
+                          </button>
+                        ) : null}
+                        {q.status !== 'accepted' && (
+                          <button onClick={() => handleDeleteQuotation(q.id)} title="Delete Quotation" className="text-rose-500 hover:text-rose-400 p-1 transition-colors">
+                            <Trash size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -315,7 +381,7 @@ export function Quotations() {
           <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Create Quotation</h3>
+                <h3 className="text-base font-semibold text-foreground">{editingId ? "Edit Quotation" : "Create Quotation"}</h3>
                 <p className="text-xs text-muted-foreground">Fill in all details to generate a formatted PDF Quotation matching Keya Fusion standards.</p>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground text-sm transition-colors">✕</button>
@@ -461,8 +527,8 @@ export function Quotations() {
 
               {/* Actions Footer */}
               <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
-                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create &amp; Save Quotation</button>
+                <button type="button" onClick={() => { setIsAddModalOpen(false); setEditingId(null); }} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">{editingId ? "Update Quotation" : "Create & Save Quotation"}</button>
               </div>
             </form>
           </div>
