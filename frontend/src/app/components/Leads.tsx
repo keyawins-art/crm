@@ -105,6 +105,7 @@ export function Leads() {
     try {
       const payload = { ...formData };
       if (!payload.assigned_to_id) delete (payload as any).assigned_to_id;
+      if (!payload.email) delete (payload as any).email;
       if (!payload.next_followup_date) delete (payload as any).next_followup_date;
       else payload.next_followup_date = new Date(payload.next_followup_date).toISOString();
 
@@ -354,7 +355,7 @@ export function Leads() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-semibold text-muted-foreground">Email Address</label>
-                    <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="john@example.com" />
+                    <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="john@example.com" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-semibold text-muted-foreground">Contact / Phone</label>

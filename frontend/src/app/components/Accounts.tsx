@@ -132,6 +132,7 @@ export function Accounts() {
     try {
       const payload = { ...addFormData };
       if (!payload.owner_id) delete (payload as any).owner_id;
+      if (!payload.email) delete (payload as any).email;
       await accountsAPI.create(payload);
       setIsAddModalOpen(false);
       setAddFormData(getInitialFormState());
