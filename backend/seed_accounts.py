@@ -40,7 +40,7 @@ def seed():
             admin_password = os.getenv("INITIAL_ADMIN_PASSWORD")
             
             if admin_email and admin_password:
-                admin_role = db.query(Role).filter(Role.name == "System Administrator").first()
+                admin_role = db.query(Role).filter(Role.name == "Admin").first()
                 admin_user = User(
                     email=admin_email,
                     first_name="System",
