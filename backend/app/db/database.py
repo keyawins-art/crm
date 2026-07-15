@@ -10,9 +10,6 @@ env_path = BASE_DIR / ".env"
 load_dotenv(env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-print("=============================")
-print("CURRENT DATABASE URL:", DATABASE_URL)
-print("=============================")
 
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not configured. Add it to backend/.env")

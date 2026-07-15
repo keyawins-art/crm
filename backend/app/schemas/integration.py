@@ -9,7 +9,7 @@ from app.models.integration import IntegrationProvider, IntegrationStatus
 class IntegrationConfigBase(BaseModel):
     provider_name: IntegrationProvider
     is_enabled: bool = False
-    credentials: Dict[str, Any] = {}
+    # NOTE: credentials are NEVER returned in API responses
 
 
 class IntegrationConnect(BaseModel):
@@ -17,6 +17,7 @@ class IntegrationConnect(BaseModel):
 
 
 class IntegrationConfigRead(IntegrationConfigBase):
+    """Response schema — deliberately omits credentials."""
     id: UUID
     status: IntegrationStatus
     created_at: datetime

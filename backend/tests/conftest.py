@@ -6,6 +6,10 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import app
+from app.main import limiter as main_limiter
+from app.api.auth import limiter as auth_limiter
+main_limiter.enabled = False
+auth_limiter.enabled = False
 
 @pytest.fixture(scope="session")
 def client():
@@ -15,17 +19,33 @@ def client():
 @pytest.fixture(scope="session")
 def admin_token(client: TestClient):
     # Log in as admin
-    # Assuming seed.py created admin@example.com / admin
     response = client.post("/auth/login", data={"username": "admin@example.com", "password": "admin"})
     
-    # If not exists, try to register it
+    # If not exists, insert directly into DB
     if response.status_code != 200:
-        client.post("/auth/register", json={
-            "email": "admin@example.com",
-            "first_name": "Admin",
-            "last_name": "User",
-            "password": "admin"
-        })
+        from app.db.database import SessionLocal
+        from app.models.user import User
+        from app.models.role import Role
+        from app.core.security import get_password_hash
+        from app.core.rbac_seed import seed_rbac_data
+        
+        db = SessionLocal()
+        # Ensure RBAC roles and permissions exist
+        seed_rbac_data(db)
+        
+        admin_role = db.query(Role).filter(Role.name == "Admin").first()
+        admin_user = User(
+            email="admin@example.com",
+            first_name="Admin",
+            last_name="User",
+            password_hash=get_password_hash("admin"),
+            role_id=admin_role.id if admin_role else None,
+            is_active=True
+        )
+        db.add(admin_user)
+        db.commit()
+        db.close()
+        
         response = client.post("/auth/login", data={"username": "admin@example.com", "password": "admin"})
         
     return response.json()["access_token"]

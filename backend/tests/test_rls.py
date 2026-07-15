@@ -6,29 +6,31 @@ from app.db.database import SessionLocal
 
 client = TestClient(app)
 
-def test_rls_sales_executive_owns_data():
+def test_rls_sales_executive_owns_data(client: TestClient, admin_token: str):
     db_session = SessionLocal()
     try:
         from app.models import User, Role
+        from app.core.security import get_password_hash
         
-        # Create Admin
-        admin_email = f"admin_{uuid4().hex[:8]}@example.com"
-        client.post("/auth/register", json={"email": admin_email, "password": "TestPass123!", "first_name": "Ad", "last_name": "Min"})
-        user_admin = db_session.query(User).filter(User.email == admin_email).first()
-        admin_role = db_session.query(Role).filter(Role.name == "Admin").first()
-        user_admin.role_id = admin_role.id
-        db_session.commit()
-        
-        resp = client.post("/auth/login", data={"username": admin_email, "password": "TestPass123!"})
-        admin_token = resp.json()["access_token"]
+        # Admin is already available via admin_token fixture
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # Get admin user ID (assuming admin is admin@example.com from conftest)
+        user_admin = db_session.query(User).filter(User.email == "admin@example.com").first()
+        admin_lead_id = None
         
         # Create Sales Exec
         exec_email = f"exec_{uuid4().hex[:8]}@example.com"
-        client.post("/auth/register", json={"email": exec_email, "password": "TestPass123!", "first_name": "Sa", "last_name": "Les"})
-        user_exec = db_session.query(User).filter(User.email == exec_email).first()
         exec_role = db_session.query(Role).filter(Role.name == "Sales Executive").first()
-        user_exec.role_id = exec_role.id
+        user_exec = User(
+            email=exec_email,
+            first_name="Sa",
+            last_name="Les",
+            password_hash=get_password_hash("TestPass123!"),
+            role_id=exec_role.id if exec_role else None,
+            is_active=True
+        )
+        db_session.add(user_exec)
         db_session.commit()
         
         resp = client.post("/auth/login", data={"username": exec_email, "password": "TestPass123!"})
@@ -65,7 +67,7 @@ def test_rls_sales_executive_owns_data():
         
         # 7. Exec tries to delete Admin's lead
         resp = client.delete(f"/crm/leads/{admin_lead_id}", headers=exec_headers)
-        assert resp.status_code == 404
+        assert resp.status_code == 403
         
         # 8. Exec list leads only shows their own lead
         resp = client.get("/crm/leads", headers=exec_headers)

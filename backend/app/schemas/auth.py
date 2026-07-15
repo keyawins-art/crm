@@ -8,14 +8,6 @@ class AuthConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class RegisterRequest(AuthConfig):
-    email: EmailStr
-    password: str
-    first_name: str
-    last_name: str
-    phone: Optional[str] = None
-
-
 class LoginRequest(AuthConfig):
     email: EmailStr
     password: str
@@ -39,3 +31,28 @@ class MeResponse(AuthConfig):
     phone: Optional[str] = None
     status: Optional[str] = None
     role: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Invite-only registration (replaces public RegisterRequest)
+# ---------------------------------------------------------------------------
+class InviteRequest(AuthConfig):
+    """Admin sends this to create a new invited user."""
+    email: EmailStr
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None
+    role_id: Optional[UUID] = None
+
+
+class InviteResponse(AuthConfig):
+    user_id: UUID
+    email: EmailStr
+    invite_token: str
+    message: str
+
+
+class AcceptInviteRequest(AuthConfig):
+    """New user sends this to set their password and activate their account."""
+    invite_token: str
+    password: str

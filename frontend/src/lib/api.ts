@@ -50,9 +50,12 @@ export const authAPI = {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
   },
-  register: (data: { email: string; first_name: string; last_name: string; password: string; phone?: string }) =>
-    api.post("/auth/register", data),
+  logout: () => api.post("/auth/logout"),
   me: () => api.get("/auth/me"),
+  invite: (data: { email: string; first_name: string; last_name: string; phone?: string; role_id?: string }) =>
+    api.post("/auth/invite", data),
+  acceptInvite: (data: { invite_token: string; password: string }) =>
+    api.post("/auth/accept-invite", data),
 };
 
 // Accounts

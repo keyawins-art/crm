@@ -32,21 +32,28 @@ companies = [
 def seed():
     db = SessionLocal()
     try:
-        # Check if an admin user exists, else create one
+        # Check if an admin user exists, else create one using environment variables
         admin_user = db.query(User).first()
         if not admin_user:
-            admin_role = db.query(Role).filter(Role.name == "System Administrator").first()
-            admin_user = User(
-                email="admin@crm.com",
-                first_name="System",
-                last_name="Admin",
-                password_hash=get_password_hash("Admin123!"),
-                role_id=admin_role.id if admin_role else None
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-            print("Created default admin user: admin@crm.com / Admin123!")
+            import os
+            admin_email = os.getenv("INITIAL_ADMIN_EMAIL")
+            admin_password = os.getenv("INITIAL_ADMIN_PASSWORD")
+            
+            if admin_email and admin_password:
+                admin_role = db.query(Role).filter(Role.name == "System Administrator").first()
+                admin_user = User(
+                    email=admin_email,
+                    first_name="System",
+                    last_name="Admin",
+                    password_hash=get_password_hash(admin_password),
+                    role_id=admin_role.id if admin_role else None
+                )
+                db.add(admin_user)
+                db.commit()
+                db.refresh(admin_user)
+                print(f"Created default admin user: {admin_email}")
+            else:
+                print("Skipping admin creation: INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD not set in environment.")
 
         count = 0
         for comp in companies:
@@ -62,7 +69,7 @@ def seed():
                     description=f"Enterprise account for {comp['name']}",
                     annual_revenue=random.randint(1000000, 50000000),
                     employee_count=random.randint(50, 10000),
-                    owner_id=admin_user.id
+                    owner_id=admin_user.id if admin_user else None
                 )
                 db.add(acc)
                 count += 1

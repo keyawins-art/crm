@@ -5,14 +5,14 @@ from uuid import uuid4
 def test_create_account_success(client: TestClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
     payload = {
-        "name": "Test Corp",
+        "name": f"Test Corp {uuid4().hex[:8]}",
         "industry": "technology",
         "annual_revenue": 1000000.0,
     }
     response = client.post("/crm/accounts", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
-    assert data["name"] == "Test Corp"
+    assert "Test Corp" in data["name"]
     assert "id" in data
 
 def test_create_account_unauthorized(client: TestClient):

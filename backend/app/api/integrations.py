@@ -53,7 +53,7 @@ def connect_integration(
     if not config:
         raise HTTPException(status_code=404, detail="Integration provider not found")
         
-    config.credentials = payload.credentials
+    config.set_credentials(payload.credentials)
     config.is_enabled = True
     config.status = IntegrationStatus.CONNECTED
     db.commit()

@@ -1,8 +1,13 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.api.auth import router as auth_router
 from app.api.crm import router as crm_router
@@ -33,6 +38,11 @@ description = """
 * **Analytics**: Real-time KPI dashboard and charts.
 """
 
+# ---------------------------------------------------------------------------
+# Rate limiter (slowapi) — keyed by client IP
+# ---------------------------------------------------------------------------
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="NextGen CRM API",
     description=description,
@@ -45,9 +55,20 @@ app = FastAPI(
         "name": "Proprietary",
     }
 )
+
+# Attach limiter to the app (slowapi stores it in app.state)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ---------------------------------------------------------------------------
+# CORS — explicit origin allowlist from env var
+# ---------------------------------------------------------------------------
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex="https?://.*",
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -40,6 +40,7 @@ from .knowledge_base import KnowledgeBaseArticle
 from .audit import AuditLog, AuditAction
 from .audit import Notification, NotificationType
 from .company_settings import CompanySettings
+from .token_blacklist import BlacklistedToken
 
 __all__ = [
     # Base
@@ -86,5 +87,6 @@ __all__ = [
     "Payment",
     "Ticket", "TicketStatus", "TicketPriority", "TicketComment",
     "KnowledgeBaseArticle",
-    "CompanySettings"
+    "CompanySettings",
+    "BlacklistedToken",
 ]

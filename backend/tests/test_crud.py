@@ -6,23 +6,10 @@ from app.db.database import SessionLocal
 
 client = TestClient(app)
 
-def test_account_crud_lifecycle():
+def test_account_crud_lifecycle(client: TestClient, admin_token: str):
     db_session = SessionLocal()
     try:
-        # Register an admin user to perform operations
-        email = f"admin_{uuid4().hex[:8]}@example.com"
-        resp = client.post("/auth/register", json={"email": email, "password": "TestPass123!", "first_name": "Ad", "last_name": "Min"})
-        assert resp.status_code == 201
-
-        from app.models import User, Role
-        user = db_session.query(User).filter(User.email == email).first()
-        admin_role = db_session.query(Role).filter(Role.name == "Admin").first()
-        user.role_id = admin_role.id
-        db_session.commit()
-
-        resp = client.post("/auth/login", data={"username": email, "password": "TestPass123!"})
-        token = resp.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {admin_token}"}
 
         # 1. CREATE Account
         create_resp = client.post("/crm/accounts", headers=headers, json={"name": "CRUD Test Account", "industry": "technology"})

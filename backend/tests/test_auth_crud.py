@@ -14,14 +14,18 @@ def test_login_failure(client: TestClient):
     assert response.status_code == 401
     assert "Invalid credentials" in response.json()["detail"]
 
-def test_register_duplicate(client: TestClient, admin_token: str):
-    # Try registering admin again
+def test_invite_duplicate(client: TestClient, admin_token: str):
+    # Try inviting admin again
     payload = {
         "email": "admin@example.com",
         "first_name": "Admin",
         "last_name": "User",
-        "password": "admin"
+        "phone": "1234567890"
     }
-    response = client.post("/auth/register", json=payload)
+    response = client.post(
+        "/auth/invite", 
+        json=payload,
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
     assert response.status_code == 400
     assert "already registered" in response.json()["detail"]

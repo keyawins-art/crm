@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, String, Boolean, Enum as SAEnum, JSON
+from sqlalchemy import Column, String, Boolean, Enum as SAEnum, Text
 from .base import Base, UUIDMixin, TimestampMixin
 
 
@@ -25,8 +25,21 @@ class IntegrationConfig(Base, UUIDMixin, TimestampMixin):
 
     provider_name = Column(SAEnum(IntegrationProvider), unique=True, nullable=False, index=True)
     is_enabled = Column(Boolean, default=False, nullable=False)
-    credentials = Column(JSON, nullable=False, default=dict) # Securely stores tokens/secrets
+    # Stores Fernet-encrypted JSON blob — never plaintext secrets
+    credentials_encrypted = Column("credentials", Text, nullable=True)
     status = Column(SAEnum(IntegrationStatus), default=IntegrationStatus.DISCONNECTED, nullable=False)
+
+    # ---- helpers for transparent encrypt / decrypt ----
+
+    def set_credentials(self, data: dict) -> None:
+        """Encrypt and store credentials."""
+        from app.core.crypto import encrypt_json_safe
+        self.credentials_encrypted = encrypt_json_safe(data)
+
+    def get_credentials(self) -> dict:
+        """Decrypt and return credentials."""
+        from app.core.crypto import decrypt_json_safe
+        return decrypt_json_safe(self.credentials_encrypted)
 
     def __repr__(self):
         return f"<IntegrationConfig {self.provider_name} [{self.status}]>"

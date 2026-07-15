@@ -25,9 +25,10 @@ annotated-types==0.7.0
 
 # --- Authentication & Security ---
 passlib[bcrypt]==1.7.4
-bcrypt==5.0.0
+bcrypt==4.0.1
 python-jose==3.5.0
 cryptography==49.0.0
+slowapi==0.1.9
 
 # --- Email ---
 fastapi-mail==1.6.5

@@ -142,9 +142,6 @@ export function Login() {
             </button>
           </form>
 
-          <p className="text-[11px] text-muted-foreground/50 text-center mt-8">
-            Default: admin@crm.com / admin123
-          </p>
         </div>
       </div>
     </div>
