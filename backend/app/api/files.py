@@ -33,6 +33,8 @@ ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".gif"
 }
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB limit
+
 @router.post("", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
 def upload_file(
     entity_type: str = Form(...),
@@ -48,6 +50,13 @@ def upload_file(
         raise HTTPException(
             status_code=400, 
             detail=f"Unsupported file format. Supported formats: PDF, DOCX, Excel, Images."
+        )
+
+    # Validate file size
+    if file.size and file.size > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds maximum allowed size of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."
         )
 
     # Validate entity

@@ -31,7 +31,7 @@ if not SECRET_KEY or SECRET_KEY in _INSECURE_DEFAULTS:
         "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
     )
 
-ALGORITHM = os.getenv("JWT_ALGORITHM") or os.getenv("ALGORITHM", "HS256")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
@@ -93,7 +93,7 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
         "jti": str(uuid.uuid4()),
         "type": "access",
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
 def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
@@ -106,8 +106,8 @@ def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None
         "jti": str(uuid.uuid4()),
         "type": "refresh",
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
 def decode_token(token: str) -> Dict[str, Any]:
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
