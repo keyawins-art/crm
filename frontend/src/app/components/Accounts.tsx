@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, Building2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Building2, Edit2 } from "lucide-react";
 import { accountsAPI, usersAPI, productsAPI } from "../../lib/api";
 import { Customer360Modal } from "./Customer360Modal";
 
@@ -26,6 +26,7 @@ export function Accounts() {
   const [loadingActivities, setLoadingActivities] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   
@@ -45,6 +46,36 @@ export function Accounts() {
   });
 
   const [addFormData, setAddFormData] = useState(getInitialFormState());
+  const [editFormData, setEditFormData] = useState<any>(null);
+
+  const handleEditClick = (e: React.MouseEvent, acc: any) => {
+    e.stopPropagation();
+    setEditFormData({ ...acc });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData) return;
+    try {
+      const payload = { ...editFormData };
+      delete payload.id;
+      delete payload.created_at;
+      delete payload.updated_at;
+      delete payload.owner;
+      if (!payload.owner_id) delete payload.owner_id;
+      if (!payload.email) delete payload.email;
+      
+      await accountsAPI.update(editFormData.id, payload);
+      setIsEditModalOpen(false);
+      setEditFormData(null);
+      loadAccounts();
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.response?.data?.detail || "Failed to update customer";
+      alert(errMsg);
+    }
+  };
 
   useEffect(() => {
     loadAccounts();
@@ -217,7 +248,10 @@ export function Accounts() {
                     <td className="px-3 py-2.5 text-muted-foreground capitalize">{acc.source || "—"}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{assigneeName}</td>
                     <td className="px-3 py-2.5 text-foreground font-medium">{acc.product_of_interest || "—"}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 flex items-center gap-2">
+                      <button onClick={(e) => handleEditClick(e, acc)} className="text-muted-foreground hover:text-primary transition-colors" title="Edit Customer">
+                        <Edit2 size={14} />
+                      </button>
                       <button className="text-muted-foreground hover:text-foreground transition-colors">
                         <MoreHorizontal size={14} />
                       </button>
@@ -329,6 +363,94 @@ export function Accounts() {
               <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border shrink-0">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
                 <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Create Customer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {isEditModalOpen && editFormData && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">Edit Customer</h3>
+              <button onClick={() => { setIsEditModalOpen(false); setEditFormData(null); }} className="text-muted-foreground hover:text-foreground transition-colors">✕</button>
+            </div>
+            <form onSubmit={handleEditAccount} className="p-6 flex-1 overflow-y-auto flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company Name</label>
+                  <input required value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Keya Industries" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Name (Contact Person)</label>
+                  <input required value={editFormData.contact_name || ""} onChange={e => setEditFormData({...editFormData, contact_name: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Rakesh Patel" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company Type</label>
+                  <select value={editFormData.type || "prospect"} onChange={e => setEditFormData({...editFormData, type: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {["prospect", "customer", "partner", "vendor"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">GST Number</label>
+                  <input value={editFormData.gst_number || ""} onChange={e => setEditFormData({...editFormData, gst_number: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground font-mono" placeholder="24AAECK0154G1ZZ" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Phone</label>
+                  <input value={editFormData.phone || ""} onChange={e => setEditFormData({...editFormData, phone: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="+91 9876543210" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
+                  <input type="email" value={editFormData.email || ""} onChange={e => setEditFormData({...editFormData, email: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="client@company.com" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Location (City)</label>
+                  <input value={editFormData.billing_city || ""} onChange={e => setEditFormData({...editFormData, billing_city: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Vadodara" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Location (State)</label>
+                  <input value={editFormData.billing_state || ""} onChange={e => setEditFormData({...editFormData, billing_state: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground" placeholder="Gujarat" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Source</label>
+                  <select value={editFormData.source || "exhibition"} onChange={e => setEditFormData({...editFormData, source: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                    {["exhibition", "website", "cold_call", "referral", "other"].map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Customer Assignee (Assigned To)</label>
+                  <select value={editFormData.owner_id || ""} onChange={e => setEditFormData({...editFormData, owner_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                    <option value="">Select Assignee</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name || ""}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Product of Interest</label>
+                <select value={editFormData.product_of_interest || ""} onChange={e => setEditFormData({...editFormData, product_of_interest: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground">
+                  <option value="">Select Product Model</option>
+                  {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border shrink-0">
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setEditFormData(null); }} className="px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary rounded transition-colors">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">Save Changes</button>
               </div>
             </form>
           </div>
