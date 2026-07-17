@@ -5,6 +5,12 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.db.database import engine
+from app.models import Base
+
+# Create all tables before any test collection/execution happens
+Base.metadata.create_all(bind=engine)
+
 from app.main import app
 from app.main import limiter as main_limiter
 from app.api.auth import limiter as auth_limiter

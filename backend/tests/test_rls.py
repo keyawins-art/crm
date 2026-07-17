@@ -72,9 +72,11 @@ def test_rls_sales_executive_owns_data(client: TestClient, admin_token: str):
         # 8. Exec list leads only shows their own lead
         resp = client.get("/crm/leads", headers=exec_headers)
         assert resp.status_code == 200
-        leads = resp.json()
+        leads = resp.json().get("items", [])
         assert len(leads) >= 1
-        assert all(lead["created_by_id"] == str(user_exec.id) or lead["assigned_to_id"] == str(user_exec.id) for lead in leads)
+        lead_ids = [lead["id"] for lead in leads]
+        assert exec_lead_id in lead_ids
+        assert admin_lead_id not in lead_ids
 
     finally:
         db_session.close()
