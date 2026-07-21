@@ -40,6 +40,7 @@ ROLE_PERMISSIONS = {
         "leads:create", "leads:read", "leads:update",
         "contacts:create", "contacts:read", "contacts:update",
         "accounts:read",
+        "accounts:update",
         "opportunities:read",
         "quotations:read",
     ],

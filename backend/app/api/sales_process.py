@@ -227,7 +227,7 @@ def update_sales_order(
     if not so:
         raise HTTPException(status_code=404, detail="Sales Order not found")
         
-    if current_user.role not in ["admin", "support"] and so.assignee_id != current_user.id:
+    if current_user.role and current_user.role.name.lower() not in ["admin", "support"] and so.assignee_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this sales order")
         
     update_dict = update_data.model_dump(exclude_unset=True)
