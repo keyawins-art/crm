@@ -44,6 +44,7 @@ jobs:
       working-directory: ./backend
       env:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/crm_test
+        TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/crm_test
         SECRET_KEY: test_secret_key
         JWT_ALGORITHM: HS256
         ENCRYPTION_KEY: qR5zN9Z8d8V7b9c9V2t9C4v2x4Q8c7w8D2q2M5n5H8c=
