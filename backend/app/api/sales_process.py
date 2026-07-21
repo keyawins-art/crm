@@ -18,6 +18,7 @@ from app.models.payment import Payment
 from app.models.audit import AuditAction
 from app.api.crm import log_audit
 from app.core.rbac import require_permission
+from app.models import Account
 
 from app.schemas.sales_order import SalesOrderRead
 from app.schemas.invoice import InvoiceRead
