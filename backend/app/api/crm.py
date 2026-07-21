@@ -32,7 +32,7 @@ from app.models import (
     Role,
     CompanySettings,
 )
-from app.schemas.company_settings import CompanySettingsRead, CompanySettingsUpdate
+from app.schemas.company_settings import CompanySettingsRead, CompanySettingsUpdate, CompanyIdentityRead
 from app.schemas.crm import (
     AccountCreate, AccountRead, AccountUpdate,
     ContactCreate, ContactRead, ContactUpdate,
@@ -42,6 +42,7 @@ from app.schemas.crm import (
     QuotationCreate, QuotationRead, QuotationUpdate,
     UserCreate, UserRead, UserUpdate, RoleRead, PaginatedResponse
 )
+from typing import Union
 
 router = APIRouter(prefix="/crm", tags=["CRM"])
 
@@ -243,6 +244,60 @@ def get_account(
         raise HTTPException(status_code=404, detail="Account not found")
     return obj
 
+
+@router.get("/accounts/{id}/context")
+def get_account_context(
+    id: UUID,
+    current_user: User = Depends(require_permission("accounts:read")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Account).filter(Account.id == id, Account.is_deleted == False)
+
+    # RLS Enforcement
+    if current_user.role and current_user.role.name == "Sales Executive":
+        if hasattr(Account, 'owner_id'):
+            query = query.filter(Account.owner_id == current_user.id)
+        elif hasattr(Account, 'assigned_to_id'):
+            if hasattr(Account, 'created_by_id'):
+                from sqlalchemy import or_
+                query = query.filter(or_(Account.assigned_to_id == current_user.id, Account.created_by_id == current_user.id))
+            else:
+                query = query.filter(Account.assigned_to_id == current_user.id)
+        elif hasattr(Account, 'created_by_id'):
+            query = query.filter(Account.created_by_id == current_user.id)
+
+    account = query.first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    contact = db.query(Contact).filter(Contact.account_id == id, Contact.is_deleted == False).order_by(Contact.created_at.asc()).first()
+
+    billing_parts = [account.billing_street, account.billing_city, account.billing_state, account.billing_pincode]
+    shipping_parts = [account.shipping_street, account.shipping_city, account.shipping_state, account.shipping_pincode]
+    
+    billing_address = ", ".join(p for p in billing_parts if p)
+    shipping_address = ", ".join(p for p in shipping_parts if p)
+
+    return {
+        "account": {
+            "name": account.name,
+            "phone": account.phone,
+            "email": account.email,
+            "gst_number": account.gst_number,
+            "industry": account.industry,
+            "annual_revenue": account.annual_revenue,
+            "product_of_interest": account.product_of_interest,
+        },
+        "primary_contact": {
+            "first_name": contact.first_name if contact else None,
+            "last_name": contact.last_name if contact else None,
+            "phone": contact.phone if contact else None,
+            "email": contact.email if contact else None,
+            "title": contact.title if contact else None,
+        } if contact else None,
+        "billing_address": billing_address,
+        "shipping_address": shipping_address,
+    }
 
 @router.put("/accounts/{id}", response_model=AccountRead)
 def update_account(
@@ -956,8 +1011,24 @@ def upload_product_image(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    # Since fastapi serves static files from uploads, we can return the path
-    return {"url": f"/{file_path}"}
+    return {"url": f"/crm/uploads/{unique_filename}"}
+
+@router.get("/uploads/{filename}")
+def get_public_upload(filename: str):
+    if not (filename.startswith("logo_") or filename.startswith("product_")):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+        
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    file_path = Path("uploads") / filename
+    
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    return FileResponse(file_path)
 
 
 # Products
@@ -2455,25 +2526,18 @@ def list_roles(
 
 
 # Company Settings
-@router.get("/company-settings", response_model=CompanySettingsRead)
-def get_company_settings(db: Session = Depends(get_db)):
+@router.get("/company-settings", response_model=Union[CompanySettingsRead, CompanyIdentityRead])
+def get_company_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     settings = db.query(CompanySettings).first()
     if not settings:
-        # Default Seed details for Keya Fusion Technology if not found
-        settings = CompanySettings(
-            company_name="Keya Fusion Technology Pvt Ltd",
-            address="7, Prime Industry Estate, Savli - Vadodara Rd, behind Guru Krupa Farm, Manjusar, Gujarat 391775",
-            gst_number="24AAECK0154G1ZZ",
-            phone="9824420127",
-            bank_name="STATE BANK OF INDIA",
-            bank_branch="SAMA SAVLI",
-            bank_account_no="31753679471",
-            bank_ifsc="SBIN0013553"
-        )
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
-    return settings
+        raise HTTPException(status_code=404, detail="Company settings not configured")
+        
+    if current_user.role and current_user.role.name.lower() in ("admin", "support"):
+        return settings
+    return CompanyIdentityRead.model_validate(settings)
 
 
 @router.put("/company-settings", response_model=CompanySettingsRead)
@@ -2526,7 +2590,7 @@ def upload_company_logo(
         db.add(settings)
         db.flush()
         
-    settings.logo_url = file_path
+    settings.logo_url = f"/crm/uploads/{unique_filename}"
     db.commit()
     db.refresh(settings)
     return settings

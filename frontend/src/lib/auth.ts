@@ -27,8 +27,9 @@ export async function login(email: string, password: string) {
 
 export async function logout() {
   try {
+    const refreshToken = localStorage.getItem("crm_refresh_token");
     // Revoke the token server-side before clearing local storage
-    await authAPI.logout();
+    await authAPI.logout(refreshToken ? { refresh_token: refreshToken } : undefined);
   } catch {
     // Even if the API call fails (e.g. token already expired), clear local state
   }

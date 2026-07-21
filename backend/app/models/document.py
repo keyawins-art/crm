@@ -20,5 +20,9 @@ class Document(Base, UUIDMixin, TimestampMixin):
     
     uploaded_by = relationship("User", lazy="joined")
 
+    @property
+    def download_url(self):
+        return f"/crm/documents/{self.id}/download"
+
     def __repr__(self):
         return f"<Document {self.filename} for {self.entity_type}/{self.entity_id}>"

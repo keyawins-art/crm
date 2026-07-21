@@ -22,6 +22,12 @@ RESOURCES_ACTIONS = {
     "opportunities": ["create", "read", "update", "delete"],
     "quotations":    ["create", "read", "update", "delete"],
     "users":         ["create", "read", "update", "delete"],
+    "tickets":       ["create", "read", "update", "delete"],
+    "kb":            ["create", "read", "update", "delete"],
+    "documents":     ["create", "read", "delete"],
+    "sales_orders":  ["create", "read", "update", "delete"],
+    "invoices":      ["create", "read", "update"],
+    "payments":      ["create", "read"],
 }
 
 # ---------------------------------------------------------------------------
@@ -35,6 +41,12 @@ ROLE_PERMISSIONS = {
         "leads:*",
         "opportunities:*",
         "quotations:*",
+        "products:*",
+        "sales_orders:*",
+        "invoices:*",
+        "payments:*",
+        "documents:*",
+        "users:read",
     ],
     "Sales Executive": [
         "leads:create", "leads:read", "leads:update",
@@ -43,13 +55,23 @@ ROLE_PERMISSIONS = {
         "accounts:update",
         "opportunities:read",
         "quotations:read",
+        "sales_orders:read",
+        "invoices:read",
+        "documents:create", "documents:read",
     ],
     "Support": [
         "accounts:read",
         "contacts:read",
         "leads:read",
+        "tickets:create", "tickets:read", "tickets:update", "tickets:delete",
+        "kb:read",
+        "documents:read",
     ],
 }
+
+# Roles whose permissions are fully managed by this seeder.
+# On each run, any permission NOT in the spec above is removed.
+SYSTEM_MANAGED_ROLES = {"Admin", "Sales Manager", "Sales Executive", "Support"}
 
 
 def _expand_permissions(spec, all_permission_names: set) -> set:
@@ -106,21 +128,36 @@ def seed_rbac_data(db: Session) -> None:
             db.flush()
         roles[role_name] = role
 
-    # --- 3. Upsert role-permission mappings ---
+    # --- 3. Reconcile role-permission mappings ---
     for role_name, perm_spec in ROLE_PERMISSIONS.items():
         role = roles[role_name]
         needed = _expand_permissions(perm_spec, all_perm_names)
 
-        # Get existing mappings for this role
-        existing_perm_ids = {
-            rp.permission_id
+        # Build lookup of existing mappings for this role
+        existing_mappings = {
+            rp.permission_id: rp
             for rp in db.query(RolePermission).filter(RolePermission.role_id == role.id).all()
         }
 
+        # Reverse lookup: permission id → name
+        perm_id_to_name = {p.id: name for name, p in all_permissions.items()}
+
+        # Add missing permissions
+        needed_ids = set()
         for perm_name in needed:
-            perm = all_permissions[perm_name]
-            if perm.id not in existing_perm_ids:
-                db.add(RolePermission(role_id=role.id, permission_id=perm.id))
+            perm = all_permissions.get(perm_name)
+            if perm:
+                needed_ids.add(perm.id)
+                if perm.id not in existing_mappings:
+                    db.add(RolePermission(role_id=role.id, permission_id=perm.id))
+
+        # Remove stale permissions for system-managed roles
+        if role_name in SYSTEM_MANAGED_ROLES:
+            for perm_id, rp in existing_mappings.items():
+                if perm_id not in needed_ids:
+                    perm_display = perm_id_to_name.get(perm_id, str(perm_id))
+                    print(f"  Removing stale permission '{perm_display}' from role '{role_name}'")
+                    db.delete(rp)
 
     db.commit()
     print(f"RBAC seed complete: {len(all_permissions)} permissions, {len(roles)} roles.")

@@ -23,6 +23,10 @@ class RefreshRequest(AuthConfig):
     refresh_token: str
 
 
+class LogoutRequest(AuthConfig):
+    refresh_token: Optional[str] = None
+
+
 class MeResponse(AuthConfig):
     id: UUID
     email: EmailStr

@@ -1,3 +1,16 @@
+# ---- Safety guard: force an isolated test database ----
+import os
+
+test_db_url = os.environ.get("TEST_DATABASE_URL")
+if not test_db_url:
+    raise RuntimeError("TEST_DATABASE_URL must be configured")
+
+if not test_db_url.rstrip("/").endswith("crm_test"):
+    raise RuntimeError("Refusing to run tests outside the crm_test database")
+
+os.environ["DATABASE_URL"] = test_db_url
+# ---- End guard ----
+
 import sys
 from pathlib import Path
 import pytest

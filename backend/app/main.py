@@ -73,7 +73,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 
 app.include_router(auth_router)
 app.include_router(crm_router)

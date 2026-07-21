@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    create_invite_token,
     decode_token,
     get_password_hash,
     needs_rehash,
@@ -29,6 +30,7 @@ from app.schemas.auth import (
     MeResponse,
     RefreshRequest,
     TokenResponse,
+    LogoutRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -68,30 +70,25 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
-    """Decode and validate the access token, checking the blacklist."""
-    if token is None:
-        raise credentials_exception
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
-        token_type = payload.get("type")
         jti = payload.get("jti")
-        if user_id is None or token_type != "access":
+
+        if payload.get("type") != "access" or not user_id:
             raise credentials_exception
-    except JWTError:
+
+        user_uuid = UUID(user_id)
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
 
-    # Check token blacklist
     if jti and _is_token_blacklisted(db, jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user = db.query(User).filter(User.id == UUID(user_id)).first()
-    if user is None:
         raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if user is None or not user.is_active:
+        raise credentials_exception
+
     return user
 
 
@@ -108,7 +105,7 @@ def login(
     email_clean = form_data.username.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
 
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not user.is_active or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Transparent password rehash: SHA-256 → bcrypt on successful login
@@ -150,10 +147,14 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     if jti and _is_token_blacklisted(db, jti):
         raise HTTPException(status_code=401, detail="Refresh token has been revoked")
 
-    user_id = token_payload.get("sub")
-    user = db.query(User).filter(User.id == UUID(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+    try:
+        user_id = UUID(token_payload["sub"])
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     # Blacklist the old refresh token (single-use rotation)
     if jti:
@@ -174,6 +175,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 @router.post("/logout")
 def logout(
     request: Request,
+    payload: Optional[LogoutRequest] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -186,9 +188,9 @@ def logout(
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
         try:
-            payload = decode_token(token)
-            jti = payload.get("jti")
-            exp = payload.get("exp")
+            tok_payload = decode_token(token)
+            jti = tok_payload.get("jti")
+            exp = tok_payload.get("exp")
             if jti:
                 expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else datetime.now(timezone.utc)
                 existing = db.query(BlacklistedToken).filter(BlacklistedToken.jti == jti).first()
@@ -196,6 +198,20 @@ def logout(
                     db.add(BlacklistedToken(jti=jti, user_id=current_user.id, expires_at=expires_at))
         except JWTError:
             pass  # Token decode failed — already invalid, nothing to blacklist
+
+    # Blacklist the refresh token if provided
+    if payload and payload.refresh_token:
+        try:
+            tok_payload = decode_token(payload.refresh_token)
+            jti = tok_payload.get("jti")
+            exp = tok_payload.get("exp")
+            if jti and tok_payload.get("type") == "refresh" and tok_payload.get("sub") == str(current_user.id):
+                expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else datetime.now(timezone.utc)
+                existing = db.query(BlacklistedToken).filter(BlacklistedToken.jti == jti).first()
+                if not existing:
+                    db.add(BlacklistedToken(jti=jti, user_id=current_user.id, expires_at=expires_at))
+        except JWTError:
+            pass
 
     db.commit()
     return {"message": "Logged out successfully — tokens revoked"}
@@ -251,10 +267,7 @@ def invite_user(
     db.flush()
 
     # Generate an invite token (short-lived, 72 hours)
-    invite_token = create_access_token(
-        str(user.id),
-        expires_delta=timedelta(hours=72),
-    )
+    invite_token = create_invite_token(str(user.id))
 
     audit = AuditLog(
         user_id=current_user.id,
@@ -290,6 +303,13 @@ def accept_invite(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired invite token")
 
+    if token_payload.get("type") != "invite":
+        raise HTTPException(status_code=401, detail="Invalid invite token")
+
+    jti = token_payload.get("jti")
+    if not jti or _is_token_blacklisted(db, jti):
+        raise HTTPException(status_code=401, detail="Invite already used or revoked")
+
     user_id = token_payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid invite token")
@@ -316,6 +336,15 @@ def accept_invite(
         details=f"{user.first_name} accepted invite and activated account",
     )
     db.add(audit)
+    db.add(
+        BlacklistedToken(
+            jti=jti,
+            user_id=user.id,
+            expires_at=datetime.fromtimestamp(
+                token_payload["exp"], tz=timezone.utc
+            ),
+        )
+    )
     db.commit()
 
     return TokenResponse(

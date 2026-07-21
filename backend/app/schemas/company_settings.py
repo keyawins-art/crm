@@ -7,6 +7,16 @@ class CRMBase(BaseModel):
     class Config:
         from_attributes = True
 
+class CompanyIdentityRead(BaseModel):
+    company_name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    logo_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
 class CompanySettingsCreate(CRMBase):
     company_name: str
     address: Optional[str] = None

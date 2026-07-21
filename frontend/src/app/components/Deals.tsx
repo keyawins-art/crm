@@ -359,7 +359,31 @@ export function Deals() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Link to Customer</label>
-                <select value={addFormData.account_id} onChange={e => setAddFormData({...addFormData, account_id: e.target.value})} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
+                <select value={addFormData.account_id} onChange={async e => {
+                  const accountId = e.target.value;
+                  setAddFormData(prev => ({ ...prev, account_id: accountId }));
+                  if (accountId) {
+                    try {
+                      const res = await accountsAPI.context(accountId);
+                      const ctx = res.data;
+                      let newName = addFormData.name;
+                      if (!newName && ctx.account?.name) {
+                        newName = `${ctx.account.name} - Deal`;
+                      }
+                      let newAmount = addFormData.amount;
+                      if (!newAmount && ctx.account?.annual_revenue) {
+                        newAmount = ctx.account.annual_revenue.toString();
+                      }
+                      setAddFormData(prev => ({
+                        ...prev,
+                        name: newName,
+                        amount: newAmount,
+                      }));
+                    } catch (err) {
+                      console.error("Failed to load account context:", err);
+                    }
+                  }
+                }} className="px-3 py-2 bg-secondary/50 border border-border rounded text-xs focus:outline-none focus:border-primary text-foreground capitalize">
                   <option value="">No Customer</option>
                   {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>

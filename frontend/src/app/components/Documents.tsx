@@ -1,9 +1,19 @@
 import { useState, useEffect } from "react";
 import { Search, File, UploadCloud, MoreHorizontal, Download } from "lucide-react";
 import { documentsAPI } from "../../lib/api";
+import api from "../../lib/api";
+
+type CrmDocument = {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  filename: string;
+  file_size: number;
+  category?: string;
+};
 
 export function Documents() {
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<CrmDocument[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -25,9 +35,9 @@ export function Documents() {
     }
   };
 
-  const filtered = documents.filter(d => {
+  const filtered = documents.filter((doc: CrmDocument) => {
     const term = search.toLowerCase();
-    return !term || d.file_name?.toLowerCase().includes(term);
+    return !term || doc.filename.toLowerCase().includes(term);
   });
 
   const formatSize = (bytes: number) => {
@@ -36,6 +46,24 @@ export function Documents() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const downloadDocument = async (doc: CrmDocument) => {
+    try {
+      const response = await api.get(
+        `/crm/documents/${doc.id}/download`,
+        { responseType: "blob" }
+      );
+
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = doc.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
   };
 
   return (
@@ -61,8 +89,8 @@ export function Documents() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {filtered.map(d => (
-              <div key={d.id} className="flex flex-col p-4 rounded border border-border bg-card hover:border-primary/30 transition-colors group">
+            {filtered.map(doc => (
+              <div key={doc.id} className="flex flex-col p-4 rounded border border-border bg-card hover:border-primary/30 transition-colors group">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 rounded bg-indigo-500/10 flex items-center justify-center">
                     <File size={20} className="text-indigo-500" />
@@ -71,14 +99,14 @@ export function Documents() {
                     <MoreHorizontal size={14} />
                   </button>
                 </div>
-                <h3 className="text-xs font-semibold text-foreground truncate mb-1" title={d.file_name}>{d.file_name}</h3>
+                <h3 className="text-xs font-semibold text-foreground truncate mb-1" title={doc.filename}>{doc.filename}</h3>
                 <div className="flex items-center justify-between mt-auto pt-2">
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    {d.file_size ? formatSize(d.file_size) : "—"}
+                    {doc.file_size ? formatSize(doc.file_size) : "—"}
                   </span>
-                  <a href={d.file_url} target="_blank" rel="noreferrer" className="text-primary hover:text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => downloadDocument(doc)} className="text-primary hover:text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Download size={14} />
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}

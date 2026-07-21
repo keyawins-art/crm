@@ -44,23 +44,57 @@ export function Quotations() {
 
   const [addFormData, setAddFormData] = useState(getInitialFormState());
 
-  const handleAccountChange = (accountId: string) => {
-    const selectedAcc = accounts.find(a => a.id === accountId);
-    let addr = "";
-    if (selectedAcc) {
-      const parts = [];
-      if (selectedAcc.billing_street) parts.push(selectedAcc.billing_street);
-      if (selectedAcc.billing_city) parts.push(selectedAcc.billing_city);
-      if (selectedAcc.billing_state) parts.push(selectedAcc.billing_state);
-      if (selectedAcc.billing_pincode) parts.push(selectedAcc.billing_pincode);
-      addr = parts.join(", ");
+  const [accountContext, setAccountContext] = useState<any>(null);
+
+  const handleAccountChange = async (accountId: string) => {
+    if (!accountId) {
+      setAddFormData({
+        ...addFormData,
+        account_id: "",
+        billing_address: "",
+        shipping_address: "",
+      });
+      setAccountContext(null);
+      return;
     }
-    setAddFormData({
-      ...addFormData,
-      account_id: accountId,
-      billing_address: addr,
-      shipping_address: addr,
-    });
+    
+    try {
+      const res = await accountsAPI.context(accountId);
+      const ctx = res.data;
+      setAccountContext(ctx);
+      
+      let newSubject = addFormData.subject;
+      if (ctx.account?.product_of_interest && !newSubject) {
+        newSubject = ctx.account.product_of_interest;
+      }
+
+      setAddFormData(prev => ({
+        ...prev,
+        account_id: accountId,
+        billing_address: ctx.billing_address || prev.billing_address,
+        shipping_address: ctx.shipping_address || prev.shipping_address,
+        subject: newSubject
+      }));
+    } catch (err) {
+      console.error("Failed to load account context:", err);
+      // Fallback to old behavior
+      const selectedAcc = accounts.find(a => a.id === accountId);
+      let addr = "";
+      if (selectedAcc) {
+        const parts = [];
+        if (selectedAcc.billing_street) parts.push(selectedAcc.billing_street);
+        if (selectedAcc.billing_city) parts.push(selectedAcc.billing_city);
+        if (selectedAcc.billing_state) parts.push(selectedAcc.billing_state);
+        if (selectedAcc.billing_pincode) parts.push(selectedAcc.billing_pincode);
+        addr = parts.join(", ");
+      }
+      setAddFormData(prev => ({
+        ...prev,
+        account_id: accountId,
+        billing_address: addr,
+        shipping_address: addr,
+      }));
+    }
   };
 
   useEffect(() => {
@@ -426,6 +460,34 @@ export function Quotations() {
                   </select>
                 </div>
               </div>
+
+              {accountContext && (
+                <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Account Context</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block mb-0.5">GST Number</span>
+                      <span className="font-mono text-foreground">{accountContext.account.gst_number || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block mb-0.5">Primary Contact</span>
+                      <span className="text-foreground">
+                        {accountContext.primary_contact 
+                          ? `${accountContext.primary_contact.first_name || ""} ${accountContext.primary_contact.last_name || ""}`.trim() || "—" 
+                          : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block mb-0.5">Contact Phone</span>
+                      <span className="text-foreground">
+                        {accountContext.primary_contact?.phone || accountContext.account.phone || "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Billing and Shipping Address Overrides */}
               <div className="grid grid-cols-2 gap-4">

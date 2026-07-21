@@ -61,6 +61,46 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return hashlib.sha256(plain_password.encode("utf-8")).hexdigest() == hashed_password
     return pwd_context.verify(plain_password, hashed_password)
 
+def _create_token(
+    subject: str,
+    token_type: str,
+    expires_delta: timedelta,
+) -> str:
+    expire = datetime.now(timezone.utc) + expires_delta
+    payload: Dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "jti": str(uuid.uuid4()),
+        "type": token_type,
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def create_access_token(
+    subject: str,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    return _create_token(
+        subject,
+        "access",
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+def create_refresh_token(
+    subject: str,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    return _create_token(
+        subject,
+        "refresh",
+        expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+
+
+def create_invite_token(subject: str) -> str:
+    return _create_token(subject, "invite", timedelta(hours=72))
+
 
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt."""
@@ -80,34 +120,9 @@ def needs_rehash(hashed_password: str) -> bool:
     return pwd_context.needs_update(hashed_password)
 
 
+
 # ---------------------------------------------------------------------------
-# JWT token creation / decoding — now includes a unique `jti` claim
+# JWT token decoding
 # ---------------------------------------------------------------------------
-def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
-    if expires_delta is None:
-        expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode: Dict[str, Any] = {
-        "sub": subject,
-        "exp": expire,
-        "jti": str(uuid.uuid4()),
-        "type": "access",
-    }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-
-def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
-    if expires_delta is None:
-        expires_delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode: Dict[str, Any] = {
-        "sub": subject,
-        "exp": expire,
-        "jti": str(uuid.uuid4()),
-        "type": "refresh",
-    }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-
 def decode_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])

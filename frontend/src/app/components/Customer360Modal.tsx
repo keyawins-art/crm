@@ -43,7 +43,9 @@ export function Customer360Modal({ account, onClose, users }: Props) {
       // Assume tasks have related_account_id or similar, but for now we'll filter by title or if it has a way to link.
       // A proper CRM task has 'account_id', we will filter by it.
       setTasks((taskRes.data.items || []).filter((t: any) => t.account_id === account.id));
-      setDocuments((docRes.data.items || []).filter((d: any) => d.account_id === account.id));
+      setDocuments((docRes.data.items || []).filter((doc: any) =>
+        doc.entity_type === "accounts" && doc.entity_id === account.id
+      ));
     } catch (e) {
       console.error(e);
     } finally {
@@ -110,8 +112,8 @@ export function Customer360Modal({ account, onClose, users }: Props) {
     const file = e.target.files[0];
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("account_id", account.id);
-    formData.append("title", file.name);
+    formData.append("entity_type", "accounts");
+    formData.append("entity_id", account.id);
     try {
       await documentsAPI.upload(formData);
       loadAllData();

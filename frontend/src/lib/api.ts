@@ -50,7 +50,7 @@ export const authAPI = {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
   },
-  logout: () => api.post("/auth/logout"),
+  logout: (data?: { refresh_token?: string }) => api.post("/auth/logout", data),
   me: () => api.get("/auth/me"),
   invite: (data: { email: string; first_name: string; last_name: string; phone?: string; role_id?: string }) =>
     api.post("/auth/invite", data),
@@ -67,6 +67,7 @@ export const accountsAPI = {
   delete: (id: string) => api.delete(`/crm/accounts/${id}`),
   activities: (id: string) => api.get(`/crm/accounts/${id}/activities`),
   addActivity: (id: string, data: any) => api.post(`/crm/accounts/${id}/activities`, data),
+  context: (id: string) => api.get(`/crm/accounts/${id}/context`),
 };
 
 // Contacts

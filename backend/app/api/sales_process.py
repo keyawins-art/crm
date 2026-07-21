@@ -5,6 +5,8 @@ from datetime import datetime, date, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
@@ -32,16 +34,47 @@ def get_db():
         db.close()
 
 
+# ---------------------------------------------------------------------------
+# Access-scoping helpers
+# ---------------------------------------------------------------------------
+PRIVILEGED_SALES_ROLES = {"Admin", "Sales Manager"}
+
+
+def scope_sales_orders(query, current_user: User):
+    """Restrict sales-order queries to records the user is allowed to see."""
+    role_name = current_user.role.name if current_user.role else ""
+
+    if role_name in PRIVILEGED_SALES_ROLES:
+        return query
+
+    return query.filter(SalesOrder.assignee_id == current_user.id)
+
+
+def scope_invoices(query, current_user: User):
+    """Restrict invoice queries via the linked sales order's assignee."""
+    role_name = current_user.role.name if current_user.role else ""
+
+    if role_name in PRIVILEGED_SALES_ROLES:
+        return query
+
+    return query.join(SalesOrder, Invoice.sales_order_id == SalesOrder.id).filter(
+        SalesOrder.assignee_id == current_user.id
+    )
+
+
 def generate_unique_number(prefix: str) -> str:
     date_str = datetime.now().strftime("%Y%m%d")
     rand_val = random.randint(1000, 9999)
     return f"{prefix}-{date_str}-{rand_val}"
 
 
+# ---------------------------------------------------------------------------
+# Conversion endpoints
+# ---------------------------------------------------------------------------
 @router.post("/quotations/{id}/convert-to-order", response_model=SalesOrderRead, status_code=status.HTTP_201_CREATED)
 def convert_quotation_to_order(
     id: UUID,
-    current_user: User = Depends(require_permission("opportunities:update")),
+    current_user: User = Depends(require_permission("sales_orders:create")),
     db: Session = Depends(get_db)
 ):
     """Convert an approved/accepted Quotation to a Sales Order."""
@@ -68,6 +101,15 @@ def convert_quotation_to_order(
         opportunity_id=quotation.opportunity_id,
         assignee_id=current_user.id
     )
+
+    ship_to = quotation.shipping_address
+    if not ship_to and sales_order.account_id:
+        acct = db.query(Account).filter(Account.id == sales_order.account_id).first()
+        if acct:
+            parts = [acct.shipping_street, acct.shipping_city, acct.shipping_state, acct.shipping_pincode]
+            ship_to = ", ".join(p for p in parts if p)
+    sales_order.ship_to = ship_to or ""
+
     db.add(sales_order)
     db.flush()
 
@@ -99,11 +141,15 @@ def convert_quotation_to_order(
 @router.post("/sales-orders/{id}/convert-to-invoice", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)
 def convert_order_to_invoice(
     id: UUID,
-    current_user: User = Depends(require_permission("opportunities:update")),
+    current_user: User = Depends(require_permission("invoices:create")),
     db: Session = Depends(get_db)
 ):
     """Convert a confirmed Sales Order to an Invoice."""
-    sales_order = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False).first()
+    query = scope_sales_orders(
+        db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False),
+        current_user,
+    )
+    sales_order = query.first()
     if not sales_order:
         raise HTTPException(status_code=404, detail="Sales Order not found")
 
@@ -132,11 +178,16 @@ def pay_invoice(
     id: UUID,
     amount: float = Query(..., gt=0),
     payment_method: Optional[str] = Query("Credit Card"),
-    current_user: User = Depends(require_permission("opportunities:update")),
+    current_user: User = Depends(require_permission("payments:create")),
     db: Session = Depends(get_db)
 ):
     """Record a payment transaction against an Invoice."""
-    invoice = db.query(Invoice).filter(Invoice.id == id, Invoice.is_deleted == False).first()
+    # Scope: only invoices linked to sales orders the user can access
+    query = scope_invoices(
+        db.query(Invoice).filter(Invoice.id == id, Invoice.is_deleted == False),
+        current_user,
+    )
+    invoice = query.first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
         
@@ -164,15 +215,20 @@ def pay_invoice(
     return invoice
 
 
-# Listing endpoints for dashboards/reports
+# ---------------------------------------------------------------------------
+# Listing / detail endpoints
+# ---------------------------------------------------------------------------
 @router.get("/sales-orders", response_model=PaginatedResponse[SalesOrderRead])
 def list_sales_orders(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(require_permission("accounts:read")),
+    current_user: User = Depends(require_permission("sales_orders:read")),
     db: Session = Depends(get_db)
 ):
-    query = db.query(SalesOrder).filter(SalesOrder.is_deleted == False)
+    query = scope_sales_orders(
+        db.query(SalesOrder).filter(SalesOrder.is_deleted == False),
+        current_user,
+    )
     total = query.count()
     items = query.offset((page - 1) * size).limit(size).all()
     return {
@@ -183,7 +239,7 @@ def list_sales_orders(
         "pages": math.ceil(total / size) if size > 0 else 0
     }
 
-from pydantic import BaseModel
+
 class SalesOrderItemUpdate(BaseModel):
     product_id: Optional[UUID] = None
     sku: Optional[str] = None
@@ -205,30 +261,37 @@ class SalesOrderUpdate(BaseModel):
     notes: Optional[str] = None
     items: Optional[List[SalesOrderItemUpdate]] = None
 
+
 @router.get("/sales-orders/{id}", response_model=SalesOrderRead)
 def get_sales_order(
     id: UUID,
-    current_user: User = Depends(require_permission("accounts:read")),
+    current_user: User = Depends(require_permission("sales_orders:read")),
     db: Session = Depends(get_db)
 ):
-    so = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False).first()
+    query = scope_sales_orders(
+        db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False),
+        current_user,
+    )
+    so = query.first()
     if not so:
         raise HTTPException(status_code=404, detail="Sales Order not found")
     return so
+
 
 @router.put("/sales-orders/{id}", response_model=SalesOrderRead)
 def update_sales_order(
     id: UUID,
     update_data: SalesOrderUpdate,
-    current_user: User = Depends(require_permission("opportunities:update")),
+    current_user: User = Depends(require_permission("sales_orders:update")),
     db: Session = Depends(get_db)
 ):
-    so = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False).first()
+    query = scope_sales_orders(
+        db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False),
+        current_user,
+    )
+    so = query.first()
     if not so:
         raise HTTPException(status_code=404, detail="Sales Order not found")
-        
-    if current_user.role and current_user.role.name.lower() not in ["admin", "support"] and so.assignee_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You do not have permission to modify this sales order")
         
     update_dict = update_data.model_dump(exclude_unset=True)
     items_data = update_dict.pop('items', None)
@@ -247,7 +310,6 @@ def update_sales_order(
             discount_pct = float(item_data.get('discount_percent', 0.0))
             
             line_taxable = (qty * rate) * (1 - (discount_pct / 100.0))
-            # Sales Order items don't have tax_percent right now in schema, just total_price
             total_amount += line_taxable
             
             so_item = SalesOrderItem(
@@ -270,15 +332,17 @@ def update_sales_order(
     return so
 
 
-
 @router.get("/invoices", response_model=PaginatedResponse[InvoiceRead])
 def list_invoices(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(require_permission("accounts:read")),
+    current_user: User = Depends(require_permission("invoices:read")),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Invoice).filter(Invoice.is_deleted == False)
+    query = scope_invoices(
+        db.query(Invoice).filter(Invoice.is_deleted == False),
+        current_user,
+    )
     total = query.count()
     items = query.offset((page - 1) * size).limit(size).all()
     return {
@@ -288,16 +352,18 @@ def list_invoices(
         "total": total,
         "pages": math.ceil(total / size) if size > 0 else 0
     }
-from fastapi.responses import StreamingResponse
+
 
 @router.get("/sales-orders/{id}/pdf")
 def get_sales_order_pdf(
     id: UUID,
-    current_user: User = Depends(require_permission("opportunities:read")),
+    current_user: User = Depends(require_permission("sales_orders:read")),
     db: Session = Depends(get_db),
 ):
-    query = db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False)
-
+    query = scope_sales_orders(
+        db.query(SalesOrder).filter(SalesOrder.id == id, SalesOrder.is_deleted == False),
+        current_user,
+    )
     obj = query.first()
     if not obj:
         raise HTTPException(status_code=404, detail="Sales Order not found")
