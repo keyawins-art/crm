@@ -60,6 +60,8 @@ ROLE_PERMISSIONS = {
         "documents:create", "documents:read",
         "products:read",
         "users:read",
+        "kb:read",
+        "tickets:read",
     ],
     "Support": [
         "accounts:read",
