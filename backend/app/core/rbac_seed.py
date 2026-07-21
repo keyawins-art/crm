@@ -58,6 +58,8 @@ ROLE_PERMISSIONS = {
         "sales_orders:create", "sales_orders:read", "sales_orders:update",
         "invoices:read",
         "documents:create", "documents:read",
+        "products:read",
+        "users:read",
     ],
     "Support": [
         "accounts:read",
