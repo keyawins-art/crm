@@ -185,12 +185,19 @@ class TestSalesExecutiveAccess:
         )
         assert resp.status_code == 403, resp.text
 
-    def test_cannot_list_users(self):
+    def test_can_list_users(self):
         resp = client.get(
             "/crm/users",
             headers=_auth_header(_sales_exec["token"]),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 200, resp.text
+
+    def test_can_read_products(self):
+        resp = client.get(
+            "/crm/products",
+            headers=_auth_header(_sales_exec["token"]),
+        )
+        assert resp.status_code == 200, resp.text
 
 
 # ---------------------------------------------------------------------------
