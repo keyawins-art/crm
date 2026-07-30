@@ -19,6 +19,8 @@ class Call(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     duration = Column(Integer, nullable=True) # Duration in seconds
     outcome = Column(String(100), nullable=True) # e.g. "Left Voicemail", "Connected", "No Answer"
     recording_url = Column(String(500), nullable=True)
+    transcript = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
     follow_up_date = Column(DateTime(timezone=True), nullable=True)
     
     # Relationships

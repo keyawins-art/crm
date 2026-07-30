@@ -144,6 +144,8 @@ export const dashboardAPI = {
 export const aiAPI = {
   status: () => api.get("/ai/status"),
   chat: (data: { message: string; conversation: { role: "user" | "assistant"; content: string }[] }) => api.post("/ai/chat", data),
+  scoreLead: (leadId: string) => api.post(`/ai/score-lead/${leadId}`),
+  autoLogCall: (data: { transcript: string; entity_type: string; entity_id: string }) => api.post("/ai/auto-log-call", data),
 };
 
 // Products

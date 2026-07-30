@@ -90,6 +90,10 @@ class Lead(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     status = Column(SAEnum(LeadStatus), default=LeadStatus.NEW, nullable=False, index=True)
     rating = Column(SAEnum(LeadRating), nullable=True)
 
+    # AI Scoring
+    ai_score = Column(Numeric(5, 2), nullable=True)
+    ai_priority_explanation = Column(Text, nullable=True)
+
     # Qualification & Requirements
     annual_revenue = Column(Numeric(15, 2), nullable=True)
     no_of_employees = Column(String(50), nullable=True)
