@@ -453,7 +453,7 @@ async def upload_call_audio(
 
     # 1. Save File
     file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in [".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"]:
+    if file_ext not in [".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".mpeg", ".mpg", ".mp4", ".webm"]:
         raise HTTPException(status_code=400, detail="Unsupported audio format.")
     
     unique_filename = f"call_{uuid4().hex}{file_ext}"

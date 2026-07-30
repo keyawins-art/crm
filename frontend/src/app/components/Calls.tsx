@@ -220,7 +220,7 @@ export function Calls() {
                   <label className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-primary/40 bg-primary/5 text-primary rounded-lg cursor-pointer hover:bg-primary/10 transition-colors w-1/3">
                     <Mic size={16} />
                     <span className="text-xs font-semibold">{audioFile ? audioFile.name : "Upload Audio File"}</span>
-                    <input type="file" accept="audio/*" className="hidden" onChange={e => {
+                    <input type="file" accept="audio/*,video/mp4,video/mpeg,.m4a,.mp4,.mpeg,.mpg" className="hidden" onChange={e => {
                       if(e.target.files?.[0]) {
                         setAudioFile(e.target.files[0]);
                         setTranscript("");
