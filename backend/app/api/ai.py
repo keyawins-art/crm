@@ -334,3 +334,91 @@ Lead Details:
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to score lead: {exc}") from exc
+
+
+from pydantic import BaseModel
+class AutoLogCallRequest(BaseModel):
+    transcript: str
+    entity_type: str  # e.g., "leads", "accounts", "opportunities"
+    entity_id: UUID
+
+@router.post("/auto-log-call")
+def auto_log_call(
+    payload: AutoLogCallRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _has_permission(current_user, "accounts:read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to CRM Copilot.")
+
+    ready, detail = get_status()
+    if not ready:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+    prompt = f"""You are an AI Sales Assistant. Analyze the following call transcript and return a JSON object with:
+1. 'summary': A concise, professional summary of the call (1-2 sentences).
+2. 'outcome': The call outcome. Choose one of: 'interested', 'not_interested', 'callback', 'left_message', 'no_answer', 'other'.
+3. 'next_actions': Any suggested follow-up actions.
+4. 'follow_up_date': An ISO format date string (e.g. '2026-08-05') if a follow-up date was mentioned, otherwise null.
+
+Transcript:
+{payload.transcript}
+"""
+    messages = [{"role": "user", "content": prompt}]
+    
+    try:
+        raw_answer = chat(messages)
+        cleaned_json = raw_answer.strip()
+        if cleaned_json.startswith("```json"):
+            cleaned_json = cleaned_json[7:-3].strip()
+        elif cleaned_json.startswith("```"):
+            cleaned_json = cleaned_json[3:-3].strip()
+            
+        data = json.loads(cleaned_json)
+        
+        # 1. Create Call Record
+        from app.models.call import Call, CallType
+        new_call = Call(
+            phone_number="AI Logged Call",
+            call_type=CallType.INBOUND,
+            outcome=data.get("outcome", "other"),
+            transcript=payload.transcript,
+            notes=data.get("summary"),
+            created_by_id=current_user.id
+        )
+        if payload.entity_type == "leads":
+            new_call.lead_id = payload.entity_id
+        elif payload.entity_type == "contacts":
+            new_call.contact_id = payload.entity_id
+        elif payload.entity_type == "opportunities":
+            new_call.opportunity_id = payload.entity_id
+            
+        db.add(new_call)
+        
+        # 2. Create Activity Note
+        from app.models.activity import TimelineActivity
+        from app.models.lead import ActivityType
+        content = data.get("summary", "")
+        if data.get("next_actions"):
+            content += f"\n\nNext Actions: {data.get('next_actions')}"
+            
+        activity = TimelineActivity(
+            entity_type=payload.entity_type,
+            entity_id=payload.entity_id,
+            activity_type=ActivityType.CALL,
+            content=content,
+            user_id=current_user.id
+        )
+        db.add(activity)
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "summary": data.get("summary"),
+            "next_actions": data.get("next_actions"),
+            "outcome": data.get("outcome")
+        }
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to auto-log call: {exc}") from exc
