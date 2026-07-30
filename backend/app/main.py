@@ -26,6 +26,7 @@ from app.api.integrations import router as integrations_router
 from app.api.knowledge_base import router as kb_router
 from app.api.sales_process import router as sales_process_router
 from app.api.tickets import router as tickets_router
+from app.api.ai import router as ai_router
 
 description = """
 **CRM Backend API** provides a complete suite of endpoints to manage the sales lifecycle.
@@ -61,18 +62,26 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ---------------------------------------------------------------------------
-# CORS — explicit origin allowlist from env var
+# CORS — allow explicit origin allowlist from env var or regex matching HTTP(S) origins
 # ---------------------------------------------------------------------------
-_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "")
+if _cors_origins_raw.strip():
+    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"https?://.*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 app.include_router(auth_router)
@@ -92,6 +101,10 @@ app.include_router(integrations_router)
 app.include_router(kb_router)
 app.include_router(sales_process_router)
 app.include_router(tickets_router)
+app.include_router(ai_router)
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.exception_handler(IntegrityError)

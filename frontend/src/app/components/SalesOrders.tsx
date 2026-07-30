@@ -150,7 +150,7 @@ export function SalesOrders() {
           customer: acct.name || "Unknown Account",
           customerInitials: first,
           customerColor: "#4f7eff", // We could generate a dynamic color based on string
-          company: acct.industry || "Unknown",
+          company: acct.industry || "",
           email: acct.email || "—",
           phone: acct.phone || "—",
           status: (o.status || "draft").toLowerCase() as OrderStatus,
@@ -471,7 +471,7 @@ export function SalesOrders() {
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground truncate">{order.customer} · {order.company}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{order.customer}{order.company ? ` · ${order.company}` : ""}</p>
 
                   <div className="flex items-center justify-between mt-1.5">
                     <span
@@ -541,7 +541,7 @@ export function SalesOrders() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{selected.customer} · {selected.company}</p>
+                      <p className="text-sm text-muted-foreground">{selected.customer}{selected.company ? ` · ${selected.company}` : ""}</p>
                     </div>
                   </div>
 
@@ -632,10 +632,12 @@ export function SalesOrders() {
                     <User2 size={12} className="text-muted-foreground shrink-0" />
                     <span className="text-xs font-semibold text-foreground">{selected.customer}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Building2 size={12} className="text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground">{selected.company}</span>
-                  </div>
+                  {selected.company && (
+                    <div className="flex items-center gap-2">
+                      <Building2 size={12} className="text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground">{selected.company}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Hash size={12} className="text-muted-foreground shrink-0" />
                     <span className="text-xs text-muted-foreground">{selected.email}</span>
