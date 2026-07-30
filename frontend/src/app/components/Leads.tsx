@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import {
-  Search, Plus, MoreHorizontal, CheckCircle2,
-  Calendar, Edit2, UserPlus, FileText, MapPin, Phone, Mail, FileCheck
+import {
+  Search, Plus, CheckCircle2,
+  Calendar, Edit2, UserPlus, MapPin, Phone, Mail, FileCheck, Sparkles, TrendingUp
 } from "lucide-react";
-import { leadsAPI, usersAPI } from "../../lib/api";
+import { leadsAPI, usersAPI, aiAPI } from "../../lib/api";
 
 type LeadStatus = "new" | "assigned" | "in_process" | "converted" | "recycled" | "dead";
 
@@ -23,7 +24,9 @@ export function Leads() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [scoringId, setScoringId] = useState<string | null>(null);
 
   const statuses = ["All", "new", "assigned", "in_process", "converted", "recycled", "dead"];
 
@@ -123,12 +126,17 @@ export function Leads() {
     }
   };
 
-  const filtered = leads.filter(l => {
+  const filtered = [...leads].filter(l => {
     const q = search.toLowerCase();
     const name = `${l.first_name || ""} ${l.last_name || ""}`.toLowerCase();
     const matchSearch = !q || name.includes(q) || (l.email || "").toLowerCase().includes(q) || (l.company || "").toLowerCase().includes(q);
     const matchStatus = statusFilter === "All" || l.status === statusFilter;
     return matchSearch && matchStatus;
+  }).sort((a, b) => {
+    if (sortByPriority) {
+      return (b.ai_score || 0) - (a.ai_score || 0);
+    }
+    return 0; // Default order from API
   });
 
   return (
@@ -158,6 +166,13 @@ export function Leads() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <button 
+            onClick={() => setSortByPriority(!sortByPriority)} 
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded transition-colors ${sortByPriority ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-border text-foreground hover:bg-white/10"}`}
+            title="Sort by AI Conversion Score"
+          >
+            <TrendingUp size={12} /> Priority Sort
+          </button>
           <button onClick={handleOpenAdd} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 transition-colors">
             <Plus size={12} /> Add Lead
           </button>
@@ -187,7 +202,7 @@ export function Leads() {
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status & Assignee</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Followup Date</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">AI Score</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-48">Requirements / Remarks</th>
                   <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
@@ -253,9 +268,37 @@ export function Leads() {
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        <div className="flex flex-col gap-0.5 font-mono text-[11px] text-muted-foreground">
-                          <span>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-GB') : "—"}</span>
-                          <span className="text-[9px] opacity-70">{lead.created_at ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
+                        <div className="flex flex-col gap-1">
+                          {lead.ai_score !== null && lead.ai_score !== undefined ? (
+                            <div className="flex items-center gap-1.5 group relative" title={lead.ai_priority_explanation}>
+                              <div className="w-full bg-secondary rounded-full h-1.5 max-w-[50px]">
+                                <div className={`h-1.5 rounded-full ${lead.ai_score > 70 ? 'bg-red-500' : lead.ai_score > 30 ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${lead.ai_score}%` }}></div>
+                              </div>
+                              <span className="font-mono text-[10px] font-bold text-foreground">{lead.ai_score}%</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                                {lead.rating === 'hot' ? '🔥 HOT' : lead.rating === 'warm' ? '☀️ WARM' : lead.rating === 'cold' ? '❄️ COLD' : ''}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50 italic">Unscored</span>
+                          )}
+                          <button 
+                            disabled={scoringId === lead.id}
+                            onClick={async () => {
+                              setScoringId(lead.id);
+                              try {
+                                await aiAPI.scoreLead(lead.id);
+                                await loadLeads();
+                              } catch(e: any) {
+                                alert(e.response?.data?.detail || "Failed to score lead");
+                              } finally {
+                                setScoringId(null);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 mt-1 bg-primary/10 text-primary hover:bg-primary/20 rounded text-[9px] font-bold w-fit transition-colors disabled:opacity-50"
+                          >
+                            <Sparkles size={10} /> {scoringId === lead.id ? "Scoring..." : "AI Score"}
+                          </button>
                         </div>
                       </td>
                       <td className="px-3 py-3">

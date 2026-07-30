@@ -115,6 +115,8 @@ class LeadCreate(CRMBase):
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     assigned_to_id: Optional[UUID] = None
+    ai_score: Optional[float] = None
+    ai_priority_explanation: Optional[str] = None
 
 
 class LeadRead(LeadCreate):
@@ -141,6 +143,8 @@ class LeadUpdate(CRMBase):
     account_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     assigned_to_id: Optional[UUID] = None
+    ai_score: Optional[float] = None
+    ai_priority_explanation: Optional[str] = None
 
 
 class LeadConvert(CRMBase):
