@@ -82,7 +82,43 @@ bash ~/crm/backend/restart_crm.sh
 
 ---
 
-## 5. Troubleshooting (Error Aaye Toh Kya Karein?)
+## 5. AI Copilot (Ollama) Deploy Kaise Karein?
+
+CRM Copilot local Ollama model use karta hai. Model browser ko expose nahi hota; backend hi `127.0.0.1:11434` par model se baat karta hai. Current default model `qwen3:4b` hai.
+
+Pehle verify karein ki model server par available hai:
+
+```bash
+ollama list
+# Agar qwen3:4b na dikhe:
+ollama pull qwen3:4b
+```
+
+Code update ke baad AI-enabled deployment ke liye:
+
+```bash
+cd ~/crm
+git pull origin main
+bash deploy_ai.sh
+```
+
+`deploy_ai.sh` dependencies install karta hai, frontend build karta hai, `/ai/` Nginx proxy ko validate karta hai, aur CRM services restart karta hai. Optional backend environment settings (`backend/.env`) hain:
+
+```bash
+AI_ENABLED=true
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3:4b
+OLLAMA_TIMEOUT_SECONDS=90
+```
+
+AI issue diagnose karne ke liye:
+
+```bash
+curl http://127.0.0.1:11434/api/tags
+sudo journalctl -u crm-backend.service -n 100 --no-pager
+```
+
+## 6. Troubleshooting (Error Aaye Toh Kya Karein?)
 
 Agar website nahi chal rahi ya koi error aa raha hai, toh Logs check karna sabse zaroori hai.
 
@@ -104,7 +140,7 @@ sudo journalctl -u crm-ngrok.service -n 50
 
 ---
 
-## 6. Database Access
+## 7. Database Access
 
 Agar database (PostgreSQL) directly check karna ho:
 ```bash

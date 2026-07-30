@@ -23,6 +23,7 @@ import { Notifications } from "./components/Notifications";
 import { Admin } from "./components/Admin";
 import { Settings } from "./components/Settings";
 import { Products } from "./components/Products";
+import { AIWorkspace } from "./components/AIWorkspace";
 import { isAuthenticated, getUser } from "../lib/auth";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: "integrations", Component: Integrations },
       { path: "notifications", Component: Notifications },
       { path: "products", Component: Products },
+      { path: "ai", Component: AIWorkspace },
       { path: "settings", Component: Settings },
       { 
         path: "admin", 
