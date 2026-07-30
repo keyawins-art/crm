@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-import {
   Search, Plus, CheckCircle2,
   Calendar, Edit2, UserPlus, MapPin, Phone, Mail, FileCheck, Sparkles, TrendingUp
 } from "lucide-react";
