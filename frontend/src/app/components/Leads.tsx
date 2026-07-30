@@ -230,10 +230,12 @@ export function Leads() {
                             <Mail size={11} className="shrink-0" />
                             <span className="truncate max-w-[140px]" title={lead.email}>{lead.email || "—"}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone size={11} className="shrink-0" />
-                            <span>{lead.phone || "—"}</span>
-                          </div>
+                          {lead.phone && (
+                            <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer" title="Call Number">
+                              <Phone size={10} />
+                              <span className="text-[11px] font-mono truncate max-w-[120px]">{lead.phone}</span>
+                            </a>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-3">

@@ -422,3 +422,128 @@ Transcript:
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to auto-log call: {exc}") from exc
+
+
+from fastapi import UploadFile, File, Form
+import os
+import shutil
+from pathlib import Path
+from uuid import uuid4
+from app.api.files import UPLOAD_DIR
+
+whisper_model = None
+def get_whisper_model():
+    global whisper_model
+    if whisper_model is None:
+        from faster_whisper import WhisperModel
+        # Use tiny or base for fast CPU inference
+        whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+    return whisper_model
+
+@router.post("/upload-call-audio")
+async def upload_call_audio(
+    entity_type: str = Form(...),
+    entity_id: UUID = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _has_permission(current_user, "accounts:read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to CRM Copilot.")
+
+    # 1. Save File
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in [".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"]:
+        raise HTTPException(status_code=400, detail="Unsupported audio format.")
+    
+    unique_filename = f"call_{uuid4().hex}{file_ext}"
+    destination = UPLOAD_DIR / unique_filename
+    
+    with open(destination, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # 2. Transcribe Audio
+    try:
+        model = get_whisper_model()
+        segments, info = model.transcribe(str(destination), beam_size=5)
+        transcript_text = " ".join([segment.text for segment in segments])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+        
+    if not transcript_text.strip():
+        raise HTTPException(status_code=400, detail="Could not transcribe any speech from the audio.")
+
+    # 3. Call existing auto_log_call logic by constructing payload
+    try:
+        request_payload = AutoLogCallRequest(
+            transcript=transcript_text,
+            entity_type=entity_type,
+            entity_id=entity_id
+        )
+        # Using the logic from auto_log_call directly
+        prompt = f"""You are an AI Sales Assistant. Analyze the following call transcript and return a JSON object with:
+1. 'summary': A concise, professional summary of the call (1-2 sentences).
+2. 'outcome': The call outcome. Choose one of: 'interested', 'not_interested', 'callback', 'left_message', 'no_answer', 'other'.
+3. 'next_actions': Any suggested follow-up actions.
+4. 'follow_up_date': An ISO format date string (e.g. '2026-08-05') if a follow-up date was mentioned, otherwise null.
+
+Transcript:
+{transcript_text}
+"""
+        messages = [{"role": "user", "content": prompt}]
+        raw_answer = chat(messages)
+        cleaned_json = raw_answer.strip()
+        if cleaned_json.startswith("```json"):
+            cleaned_json = cleaned_json[7:-3].strip()
+        elif cleaned_json.startswith("```"):
+            cleaned_json = cleaned_json[3:-3].strip()
+            
+        data = json.loads(cleaned_json)
+        
+        # 4. Create Call Record
+        from app.models.call import Call, CallType
+        new_call = Call(
+            phone_number="AI Uploaded Audio",
+            call_type=CallType.INBOUND,
+            outcome=data.get("outcome", "other"),
+            recording_url=unique_filename,
+            transcript=transcript_text,
+            notes=data.get("summary"),
+            created_by_id=current_user.id
+        )
+        if entity_type == "leads":
+            new_call.lead_id = entity_id
+        elif entity_type == "contacts":
+            new_call.contact_id = entity_id
+        elif entity_type == "opportunities":
+            new_call.opportunity_id = entity_id
+            
+        db.add(new_call)
+        
+        # 5. Create Activity Note
+        from app.models.activity import TimelineActivity
+        from app.models.lead import ActivityType
+        content = data.get("summary", "")
+        if data.get("next_actions"):
+            content += f"\n\nNext Actions: {data.get('next_actions')}"
+            
+        activity = TimelineActivity(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            activity_type=ActivityType.CALL,
+            content=content,
+            user_id=current_user.id
+        )
+        db.add(activity)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "transcript": transcript_text,
+            "summary": data.get("summary"),
+            "next_actions": data.get("next_actions"),
+            "recording_url": unique_filename
+        }
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process call audio: {exc}") from exc
