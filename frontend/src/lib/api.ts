@@ -1,11 +1,25 @@
+/// <reference types="vite/client" />
 import axios from "axios";
 
-// In production (behind nginx proxy), API is on same origin.
-// In local dev, backend runs on port 8000.
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const port = typeof window !== 'undefined' ? window.location.port : '8000';
-const isProxied = typeof window !== 'undefined' && (port === '3000' || port === '443' || port === '' || window.location.protocol === 'https:');
-const API_BASE_URL = isProxied ? '' : `http://${host}:8000`;
+// Determine backend API base URL
+// 1. Explicit env var VITE_API_URL if defined
+// 2. If running in browser on non-8000 port (e.g. Vite dev server 5173/5174/3000 or production reverse proxy), use relative URL '' to leverage Vite proxy / Nginx
+// 3. Fallback to direct backend connection http://${host}:8000
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL !== undefined) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const port = window.location.port;
+    if (port !== '8000') {
+      return '';
+    }
+    return `http://${window.location.hostname}:8000`;
+  }
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -123,6 +137,13 @@ export const reportsAPI = {
 export const dashboardAPI = {
   stats: () => api.get("/dashboard/stats"),
   auditLogs: (limit = 10) => api.get(`/dashboard/audit-logs?limit=${limit}`),
+  smart: () => api.get("/dashboard/smart"),
+};
+
+// Local Ollama-backed CRM Copilot
+export const aiAPI = {
+  status: () => api.get("/ai/status"),
+  chat: (data: { message: string; conversation: { role: "user" | "assistant"; content: string }[] }) => api.post("/ai/chat", data),
 };
 
 // Products

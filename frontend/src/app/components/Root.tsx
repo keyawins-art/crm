@@ -4,10 +4,11 @@ import {
   Bell, Search, Settings, ChevronRight, Zap, LogOut,
   MessageSquare, FileText, Shield, HelpCircle, Menu, X,
   UserPlus, Building2, LifeBuoy, Target, ShoppingCart,
-  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug, Package
+  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug, Package, Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { logout, getUser } from "../../lib/auth";
+import { AIChatWidget } from "./AIChatWidget";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/tickets", icon: LifeBuoy, label: "Tickets" },
   { to: "/products", icon: Package, label: "Product Catalog" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
+  { to: "/ai", icon: Sparkles, label: "AI Copilot" },
 ];
 
 const bottomItems = [
@@ -211,6 +213,9 @@ export function Root() {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating AI Mascot Chat Widget */}
+      <AIChatWidget />
     </div>
   );
 }
