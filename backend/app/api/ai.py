@@ -268,3 +268,69 @@ def copilot_chat(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
     return CopilotResponse(answer=answer, model=get_model_name(), sources=sources)
+
+
+import json
+from uuid import UUID
+
+@router.post("/score-lead/{lead_id}")
+def copilot_score_lead(
+    lead_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _has_permission(current_user, "accounts:read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to CRM Copilot.")
+
+    ready, detail = get_status()
+    if not ready:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    prompt = f"""You are an AI Lead Scorer. Analyze the following lead and return a JSON object with 'score' (0-100 integer), 'rating' ('hot', 'warm', or 'cold'), and 'explanation' (1 short sentence explaining why).
+Do NOT include any text outside the JSON object.
+
+Lead Details:
+- Name: {lead.full_name}
+- Company: {lead.company}
+- Source: {lead.source}
+- Industry: {lead.industry}
+- Annual Revenue: {lead.annual_revenue}
+- Requirements: {lead.requirements}
+- Remarks: {lead.remarks}
+"""
+    messages = [{"role": "user", "content": prompt}]
+    
+    try:
+        raw_answer = chat(messages)
+        # Try to parse JSON from the answer (might have markdown block)
+        cleaned_json = raw_answer.strip()
+        if cleaned_json.startswith("```json"):
+            cleaned_json = cleaned_json[7:-3].strip()
+        elif cleaned_json.startswith("```"):
+            cleaned_json = cleaned_json[3:-3].strip()
+            
+        data = json.loads(cleaned_json)
+        
+        lead.ai_score = data.get("score")
+        lead.ai_priority_explanation = data.get("explanation")
+        
+        rating = data.get("rating", "cold").lower()
+        if rating in {"hot", "warm", "cold"}:
+            from app.models.lead import LeadRating
+            lead.rating = LeadRating(rating)
+            
+        db.commit()
+        db.refresh(lead)
+        
+        return {
+            "ai_score": lead.ai_score,
+            "rating": lead.rating,
+            "ai_priority_explanation": lead.ai_priority_explanation
+        }
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to score lead: {exc}") from exc
