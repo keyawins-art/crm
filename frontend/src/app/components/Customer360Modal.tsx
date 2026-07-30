@@ -214,7 +214,7 @@ export function Customer360Modal({ account, onClose, users }: Props) {
                           <Mic size={12} />
                         )}
                         {uploadingAudio ? "Processing..." : "Upload Recording"}
-                        <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
+                        <input type="file" accept="audio/*,video/mp4,video/mpeg,.m4a,.mp4,.mpeg,.mpg" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
                       </label>
                     </div>
                     <form onSubmit={handleAddNote} className="mb-4 shrink-0 bg-secondary/10 border border-border rounded-lg p-3">

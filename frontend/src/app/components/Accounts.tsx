@@ -240,7 +240,11 @@ export function Accounts() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex flex-col">
-                        <span className="text-foreground">{acc.phone || "—"}</span>
+                        {acc.phone ? (
+                          <a href={`tel:${acc.phone}`} className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={(e) => e.stopPropagation()}>{acc.phone}</a>
+                        ) : (
+                          <span className="text-foreground">—</span>
+                        )}
                         {acc.email && <span className="text-[10px] text-muted-foreground">{acc.email}</span>}
                       </div>
                     </td>
