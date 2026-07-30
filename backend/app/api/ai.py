@@ -431,13 +431,14 @@ from pathlib import Path
 from uuid import uuid4
 from app.api.files import UPLOAD_DIR
 
+# Whisper ASR model (lazy-loaded on first audio upload request)
 whisper_model = None
 def get_whisper_model():
     global whisper_model
     if whisper_model is None:
         from faster_whisper import WhisperModel
-        # Use tiny or base for fast CPU inference
-        whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+        # Use 'small' model for better accuracy with Hindi/multilingual audio
+        whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
     return whisper_model
 
 @router.post("/upload-call-audio")
@@ -465,13 +466,21 @@ async def upload_call_audio(
     # 2. Transcribe Audio
     try:
         model = get_whisper_model()
-        segments, info = model.transcribe(str(destination), beam_size=5)
+        # Use Hindi language and VAD filter for Indian sales call recordings
+        segments, info = model.transcribe(
+            str(destination),
+            beam_size=5,
+            language="hi",
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=500),
+        )
         transcript_text = " ".join([segment.text for segment in segments])
+        print(f"[Whisper] Language: {info.language}, Text length: {len(transcript_text)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
         
     if not transcript_text.strip():
-        raise HTTPException(status_code=400, detail="Could not transcribe any speech from the audio.")
+        raise HTTPException(status_code=400, detail="Could not transcribe any speech from the audio. Please check audio quality.")
 
     # 3. Call existing auto_log_call logic by constructing payload
     try:
