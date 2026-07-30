@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Phone, MoreHorizontal, Sparkles, X } from "lucide-react";
+import { Search, Plus, Phone, MoreHorizontal, Sparkles, X, Mic } from "lucide-react";
 import { callsAPI, aiAPI, leadsAPI, accountsAPI } from "../../lib/api";
 
 export function Calls() {
@@ -14,6 +14,7 @@ export function Calls() {
   const [entityId, setEntityId] = useState("");
   const [entities, setEntities] = useState<any[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadCalls();
@@ -41,16 +42,29 @@ export function Calls() {
   };
 
   const handleAutoLog = async () => {
-    if (!transcript.trim() || !entityId) {
-      alert("Please provide a transcript and select an entity.");
+    if (!transcript.trim() && !audioFile) {
+      alert("Please provide a transcript or upload an audio file, and select an entity.");
+      return;
+    }
+    if (!entityId) {
+      alert("Please select an entity.");
       return;
     }
     try {
       setAiLoading(true);
-      await aiAPI.autoLogCall({ transcript, entity_type: entityType, entity_id: entityId });
+      if (audioFile) {
+        const formData = new FormData();
+        formData.append("file", audioFile);
+        formData.append("entity_type", entityType);
+        formData.append("entity_id", entityId);
+        await aiAPI.uploadCallAudio(formData);
+      } else {
+        await aiAPI.autoLogCall({ transcript, entity_type: entityType, entity_id: entityId });
+      }
       alert("AI Call Logged Successfully!");
       setShowAIModal(false);
       setTranscript("");
+      setAudioFile(null);
       loadCalls();
     } catch (e: any) {
       alert("Error: " + (e.response?.data?.detail || e.message));
@@ -199,27 +213,42 @@ export function Calls() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Call Transcript / Raw Notes</label>
-                <textarea 
-                  value={transcript}
-                  onChange={e => setTranscript(e.target.value)}
-                  placeholder="[Speaker 1]: Hello, am I speaking with..."
-                  className="w-full h-48 bg-secondary/30 border border-border rounded-lg p-3 text-xs text-foreground font-mono resize-none focus:outline-none focus:border-primary"
-                />
+              <div className="space-y-3">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Call Recording / Transcript</label>
+                
+                <div className="flex gap-4 items-center">
+                  <label className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-primary/40 bg-primary/5 text-primary rounded-lg cursor-pointer hover:bg-primary/10 transition-colors w-1/3">
+                    <Mic size={16} />
+                    <span className="text-xs font-semibold">{audioFile ? audioFile.name : "Upload Audio File"}</span>
+                    <input type="file" accept="audio/*" className="hidden" onChange={e => {
+                      if(e.target.files?.[0]) {
+                        setAudioFile(e.target.files[0]);
+                        setTranscript("");
+                      }
+                    }} />
+                  </label>
+                  <span className="text-xs text-muted-foreground font-semibold">OR</span>
+                  <textarea 
+                    value={transcript}
+                    disabled={!!audioFile}
+                    onChange={e => setTranscript(e.target.value)}
+                    placeholder={audioFile ? "Audio selected..." : "[Speaker 1]: Hello, am I speaking with..."}
+                    className="flex-1 h-24 bg-secondary/30 border border-border rounded-lg p-3 text-xs text-foreground font-mono resize-none focus:outline-none focus:border-primary disabled:opacity-50"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="px-6 py-4 bg-muted/20 border-t border-border flex justify-end gap-3">
               <button 
-                onClick={() => setShowAIModal(false)}
+                onClick={() => { setShowAIModal(false); setAudioFile(null); setTranscript(""); }}
                 className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleAutoLog}
-                disabled={aiLoading || !transcript.trim() || !entityId}
+                disabled={aiLoading || (!transcript.trim() && !audioFile) || !entityId}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {aiLoading ? (

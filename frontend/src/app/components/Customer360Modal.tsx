@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { X, Clock, FileText, Target, Calendar, Upload, File as FileIcon } from "lucide-react";
-import { accountsAPI, opportunitiesAPI, quotationsAPI, tasksAPI, documentsAPI } from "../../lib/api";
+import { X, Clock, FileText, Target, Calendar, Upload, File as FileIcon, Mic } from "lucide-react";
+import { accountsAPI, opportunitiesAPI, quotationsAPI, tasksAPI, documentsAPI, aiAPI } from "../../lib/api";
 
 interface Props {
   account: any;
@@ -17,6 +17,7 @@ export function Customer360Modal({ account, onClose, users }: Props) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
 
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState({ title: "", due_date: "", type: "follow_up" });
@@ -87,6 +88,28 @@ export function Customer360Modal({ account, onClose, users }: Props) {
     }
   };
 
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingAudio(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("entity_type", "accounts");
+      formData.append("entity_id", account.id);
+      
+      await aiAPI.uploadCallAudio(formData);
+      
+      alert("Audio processed successfully! Note and Call log created.");
+      loadAllData();
+    } catch (err: any) {
+      alert("Upload failed: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploadingAudio(false);
+    }
+  };
+
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title || !newTask.due_date) return;
@@ -131,7 +154,7 @@ export function Customer360Modal({ account, onClose, users }: Props) {
           <div>
             <h2 className="text-xl font-bold text-foreground">{account.name}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {account.contact_name} • {account.phone} • {account.email} • {account.billing_city}
+              {account.contact_name} • {account.phone ? <a href={`tel:${account.phone}`} className="hover:underline hover:text-primary transition-colors">{account.phone}</a> : "No Phone"} • {account.email} • {account.billing_city}
             </p>
           </div>
           <button onClick={onClose} className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors">
@@ -182,7 +205,18 @@ export function Customer360Modal({ account, onClose, users }: Props) {
                     </div>
                   </div>
                   <div className="col-span-2 flex flex-col h-full bg-card border border-border rounded-lg p-4">
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Conversation History</h3>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Conversation History</h3>
+                      <label className="flex items-center gap-1.5 px-3 py-1 bg-primary/20 text-primary hover:bg-primary/30 transition-colors border border-primary/30 rounded text-[10px] font-bold uppercase tracking-wider cursor-pointer">
+                        {uploadingAudio ? (
+                          <span className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        ) : (
+                          <Mic size={12} />
+                        )}
+                        {uploadingAudio ? "Processing..." : "Upload Recording"}
+                        <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
+                      </label>
+                    </div>
                     <form onSubmit={handleAddNote} className="mb-4 shrink-0 bg-secondary/10 border border-border rounded-lg p-3">
                       <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Log a call or meeting..." className="w-full text-sm p-3 bg-card border border-border rounded-md focus:outline-none focus:border-primary resize-none h-20 mb-3" />
                       <div className="grid grid-cols-2 gap-4 mb-3">
