@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Phone, MoreHorizontal } from "lucide-react";
-import { callsAPI } from "../../lib/api";
+import { Search, Plus, Phone, MoreHorizontal, Sparkles, X } from "lucide-react";
+import { callsAPI, aiAPI, leadsAPI, accountsAPI } from "../../lib/api";
 
 export function Calls() {
   const [calls, setCalls] = useState<any[]>([]);
@@ -8,9 +8,56 @@ export function Calls() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [entityType, setEntityType] = useState("leads");
+  const [entityId, setEntityId] = useState("");
+  const [entities, setEntities] = useState<any[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
   useEffect(() => {
     loadCalls();
   }, []);
+
+  useEffect(() => {
+    if (showAIModal) {
+      loadEntities(entityType);
+    }
+  }, [showAIModal, entityType]);
+
+  const loadEntities = async (type: string) => {
+    try {
+      if (type === "leads") {
+        const res = await leadsAPI.list(1, 100);
+        setEntities(res.data.items || []);
+      } else if (type === "accounts") {
+        const res = await accountsAPI.list(1, 100);
+        setEntities(res.data.items || []);
+      }
+      setEntityId("");
+    } catch (err) {
+      console.error("Failed to load entities:", err);
+    }
+  };
+
+  const handleAutoLog = async () => {
+    if (!transcript.trim() || !entityId) {
+      alert("Please provide a transcript and select an entity.");
+      return;
+    }
+    try {
+      setAiLoading(true);
+      await aiAPI.autoLogCall({ transcript, entity_type: entityType, entity_id: entityId });
+      alert("AI Call Logged Successfully!");
+      setShowAIModal(false);
+      setTranscript("");
+      loadCalls();
+    } catch (e: any) {
+      alert("Error: " + (e.response?.data?.detail || e.message));
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const loadCalls = async () => {
     try {
@@ -40,6 +87,9 @@ export function Calls() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] font-mono text-muted-foreground mr-3">{total} calls</span>
+          <button onClick={() => setShowAIModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 text-primary border border-primary/30 rounded text-xs font-medium hover:bg-primary/30 transition-colors">
+            <Sparkles size={14} /> AI Auto-Log
+          </button>
           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors">
             <Plus size={14} /> Log Call
           </button>
@@ -101,6 +151,87 @@ export function Calls() {
           </table>
         )}
       </div>
+
+      {/* AI Auto-Log Modal */}
+      {showAIModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-card border border-border shadow-2xl rounded-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Sparkles className="text-primary" size={18} /> AI Auto-Log Call
+              </h2>
+              <button onClick={() => setShowAIModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Paste the call transcript or raw notes below. Nexus AI will automatically analyze it, extract the outcome, summarize it, and attach it to the selected customer record.
+              </p>
+              
+              <div className="flex gap-4">
+                <div className="w-1/3">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Record Type</label>
+                  <select 
+                    value={entityType} 
+                    onChange={e => setEntityType(e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
+                  >
+                    <option value="leads">Lead</option>
+                    <option value="accounts">Account</option>
+                  </select>
+                </div>
+                <div className="w-2/3">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Select Record</label>
+                  <select 
+                    value={entityId} 
+                    onChange={e => setEntityId(e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
+                  >
+                    <option value="">Select a {entityType.slice(0, -1)}...</option>
+                    {entities.map(ent => (
+                      <option key={ent.id} value={ent.id}>
+                        {ent.name || `${ent.first_name || ''} ${ent.last_name || ''}`.trim() || ent.company}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Call Transcript / Raw Notes</label>
+                <textarea 
+                  value={transcript}
+                  onChange={e => setTranscript(e.target.value)}
+                  placeholder="[Speaker 1]: Hello, am I speaking with..."
+                  className="w-full h-48 bg-secondary/30 border border-border rounded-lg p-3 text-xs text-foreground font-mono resize-none focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-muted/20 border-t border-border flex justify-end gap-3">
+              <button 
+                onClick={() => setShowAIModal(false)}
+                className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleAutoLog}
+                disabled={aiLoading || !transcript.trim() || !entityId}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {aiLoading ? (
+                  <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
+                ) : (
+                  <><Sparkles size={14} /> Process & Log Note</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

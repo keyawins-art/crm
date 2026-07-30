@@ -12,6 +12,8 @@ class CallBase(BaseModel):
     duration: Optional[int] = None
     outcome: Optional[str] = Field(None, max_length=100)
     recording_url: Optional[str] = Field(None, max_length=500)
+    transcript: Optional[str] = None
+    notes: Optional[str] = None
     follow_up_date: Optional[datetime] = None
     
     lead_id: Optional[UUID] = None
