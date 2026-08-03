@@ -50,7 +50,7 @@ jobs:
         JWT_ALGORITHM: HS256
         ENCRYPTION_KEY: qR5zN9Z8d8V7b9c9V2t9C4v2x4Q8c7w8D2q2M5n5H8c=
       run: |
-        pytest
+        python -m pytest
 
   build-frontend:
     runs-on: ubuntu-latest
