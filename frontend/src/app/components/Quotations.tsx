@@ -163,7 +163,7 @@ export function Quotations() {
       const payload = { 
         ...addFormData,
         items: addFormData.items
-          .filter(item => item.product_id !== "")
+          .filter(item => item.product_id !== "" || (Number(item.unit_price) || 0) > 0 || (Number(item.quantity) || 0) > 0)
           .map(item => ({
             ...item,
             quantity: Number(item.quantity) || 1,
@@ -261,7 +261,6 @@ export function Quotations() {
     let subtotal = 0;
     let tax = 0;
     addFormData.items.forEach(item => {
-      if (!item.product_id) return;
       const qty = Number(item.quantity) || 0;
       const price = Number(item.unit_price) || 0;
       const taxPct = Number(item.tax_percent) || 0;
