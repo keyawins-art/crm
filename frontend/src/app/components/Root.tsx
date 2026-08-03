@@ -4,7 +4,7 @@ import {
   Bell, Search, Settings, ChevronRight, Zap, LogOut,
   MessageSquare, FileText, Shield, HelpCircle, Menu, X,
   UserPlus, Building2, LifeBuoy, Target, ShoppingCart,
-  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug, Package, Sparkles
+  Calendar, Phone, Mail, Book, Folder, GitMerge, Plug, Package, Sparkles, Sun, Moon
 } from "lucide-react";
 import { useState } from "react";
 import { logout, getUser } from "../../lib/auth";
@@ -42,7 +42,19 @@ const bottomItems = [
 export function Root() {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem("crm_theme") || "dark");
   const location = useLocation();
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("crm_theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
   const user = getUser();
 
   const pageTitle = navItems.find(n => n.end ? location.pathname === n.to : location.pathname.startsWith(n.to))?.label ?? "CRM";
@@ -198,9 +210,16 @@ export function Root() {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <button className="relative text-muted-foreground hover:text-foreground transition-colors">
+            <button 
+              onClick={toggleTheme} 
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`} 
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+            >
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button className="relative text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg">
               <Bell size={16} />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full" />
             </button>
             <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-mono font-semibold text-primary">
               {userInitials}

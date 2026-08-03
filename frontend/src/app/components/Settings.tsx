@@ -9,10 +9,20 @@ export function Settings() {
   const [user, setUser] = useState<any>(null);
 
   // Form states
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState(() => localStorage.getItem("crm_theme") || "dark");
   const [language, setLanguage] = useState("English (US)");
   const [timezone, setTimezone] = useState("Pacific Time (PT)");
   const [currency, setCurrency] = useState("INR (₹)");
+
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    localStorage.setItem("crm_theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   useEffect(() => {
     setUser(getUser());
@@ -141,7 +151,7 @@ export function Settings() {
                   <h3 className="text-lg font-medium text-foreground border-b border-border pb-2 mb-4">Appearance</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div 
-                      onClick={() => setTheme("dark")}
+                      onClick={() => handleThemeChange("dark")}
                       className={`border ${theme === 'dark' ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'} rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-primary/50 transition-colors`}>
                       <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
                         <Moon size={18} className="text-foreground" />
@@ -149,13 +159,12 @@ export function Settings() {
                       <span className="text-sm font-medium text-foreground">Dark Theme</span>
                     </div>
                     <div 
-                      onClick={() => setTheme("light")}
-                      className={`border ${theme === 'light' ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'} rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-muted-foreground transition-colors opacity-50`}>
+                      onClick={() => handleThemeChange("light")}
+                      className={`border ${theme === 'light' ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'} rounded-lg p-4 cursor-pointer flex flex-col items-center gap-3 hover:border-primary/50 transition-colors`}>
                       <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
                         <Sun size={18} className="text-foreground" />
                       </div>
                       <span className="text-sm font-medium text-foreground">Light Theme</span>
-                      <span className="text-[10px] text-muted-foreground">Coming Soon</span>
                     </div>
                   </div>
                 </div>
