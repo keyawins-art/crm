@@ -81,6 +81,53 @@ def health_check():
 
 
 
+def sanitize_account_data(data: dict) -> dict:
+    from app.models.account import AccountType, AccountIndustry
+
+    if "type" in data and data["type"]:
+        try:
+            data["type"] = AccountType(str(data["type"]).lower())
+        except Exception:
+            data["type"] = AccountType.PROSPECT
+
+    if "industry" in data and data["industry"]:
+        try:
+            data["industry"] = AccountIndustry(str(data["industry"]).lower())
+        except Exception:
+            try:
+                data["industry"] = AccountIndustry.OTHER
+            except Exception:
+                data["industry"] = None
+
+    str_limits = {
+        "name": 255,
+        "website": 255,
+        "phone": 20,
+        "email": 255,
+        "billing_street": 255,
+        "billing_city": 100,
+        "billing_state": 100,
+        "billing_country": 100,
+        "billing_pincode": 20,
+        "shipping_street": 255,
+        "shipping_city": 100,
+        "shipping_state": 100,
+        "shipping_country": 100,
+        "shipping_pincode": 20,
+        "gst_number": 20,
+        "pan_number": 20,
+        "contact_name": 255,
+        "source": 255,
+        "product_of_interest": 255,
+    }
+
+    for key, max_len in str_limits.items():
+        if key in data and isinstance(data[key], str) and data[key]:
+            data[key] = data[key][:max_len]
+
+    return data
+
+
 # Accounts
 @router.post("/accounts", response_model=AccountRead, status_code=status.HTTP_201_CREATED)
 def create_account(
@@ -116,7 +163,8 @@ def create_account(
                 detail=f"Customer details match an existing customer assigned to {owner_info}."
             )
 
-    obj = Account(**payload.model_dump(exclude_none=True))
+    account_data = sanitize_account_data(payload.model_dump(exclude_none=True))
+    obj = Account(**account_data)
     
     # Auto-assign ownership if applicable
     if hasattr(obj, 'owner_id') and not getattr(obj, 'owner_id', None):
@@ -127,11 +175,35 @@ def create_account(
     if hasattr(obj, 'created_by_id') and not getattr(obj, 'created_by_id', None):
         obj.created_by_id = current_user.id
 
-    db.add(obj)
-    db.flush()
-    log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
-    db.commit()
-    db.refresh(obj)
+    try:
+        db.add(obj)
+        db.flush()
+
+        # Create associated primary contact if contact_name provided
+        if obj.contact_name:
+            parts = obj.contact_name.strip().split(maxsplit=1)
+            first_n = parts[0][:100]
+            last_n = (parts[1] if len(parts) > 1 else "")[:100]
+            contact = Contact(
+                first_name=first_n,
+                last_name=last_n,
+                email=obj.email[:255] if obj.email else None,
+                phone=obj.phone[:20] if obj.phone else None,
+                account_id=obj.id,
+                owner_id=obj.owner_id or current_user.id,
+                mailing_city=obj.billing_city[:100] if obj.billing_city else None,
+                mailing_state=obj.billing_state[:100] if obj.billing_state else None,
+            )
+            db.add(contact)
+            db.flush()
+
+        log_audit(db, current_user, AuditAction.CREATED, obj.__class__.__name__, obj.id)
+        db.commit()
+        db.refresh(obj)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to create customer: {str(e)}")
+
     if obj.email:
         background_tasks.add_task(
             send_email,
@@ -325,20 +397,13 @@ def update_account(
     if not obj:
         raise HTTPException(status_code=404, detail="Account not found")
     
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = sanitize_account_data(payload.model_dump(exclude_unset=True))
     for key, value in update_data.items():
         setattr(obj, key, value)
         
     log_audit(db, current_user, AuditAction.UPDATED, obj.__class__.__name__, obj.id)
     db.commit()
     db.refresh(obj)
-    if 'status' in update_data and str(update_data['status']).lower() == 'sent' and obj.opportunity and obj.opportunity.contact and obj.opportunity.contact.email:
-        background_tasks.add_task(
-            send_email,
-            obj.opportunity.contact.email,
-            f"Quotation {getattr(obj, 'quote_number', 'unknown')} Attached",
-            f"Hi {obj.opportunity.contact.first_name},\n\nPlease find the attached quotation for {obj.opportunity.name}.\n\nTotal Amount: {obj.total_amount}\n\nBest regards,\nSales Team"
-        )
     return obj
 
 
@@ -2248,9 +2313,22 @@ def convert_lead(
         account_id = payload.account_id
         if not account_id:
             acc_name = lead.company if lead.company else (lead.first_name + " " + lead.last_name)
+            
+            industry_val = None
+            if lead.industry:
+                try:
+                    from app.models.account import AccountIndustry
+                    industry_val = AccountIndustry(lead.industry.lower())
+                except Exception:
+                    try:
+                        from app.models.account import AccountIndustry
+                        industry_val = AccountIndustry.OTHER
+                    except Exception:
+                        industry_val = None
+
             account = Account(
                 name=acc_name,
-                industry=lead.industry,
+                industry=industry_val,
                 annual_revenue=lead.annual_revenue,
                 owner_id=lead.assigned_to_id or current_user.id,
                 contact_name=(lead.first_name + " " + lead.last_name).strip(),
@@ -2258,7 +2336,7 @@ def convert_lead(
                 email=lead.email,
                 source=lead.source,
                 product_of_interest=lead.requirements,
-                billing_city=lead.address
+                billing_street=lead.address[:255] if lead.address else None
             )
             db.add(account)
             db.flush()
@@ -2267,7 +2345,16 @@ def convert_lead(
         # 2. Handle Contact
         contact_id = payload.contact_id
         if not contact_id:
+            salutation_val = None
+            if lead.salutation:
+                try:
+                    from app.models.contact import ContactSalutation
+                    salutation_val = ContactSalutation(lead.salutation)
+                except Exception:
+                    salutation_val = None
+
             contact = Contact(
+                salutation=salutation_val,
                 first_name=lead.first_name,
                 last_name=lead.last_name,
                 email=lead.email,
@@ -2275,7 +2362,8 @@ def convert_lead(
                 mobile=lead.mobile,
                 title=lead.title,
                 account_id=account_id,
-                owner_id=lead.assigned_to_id or current_user.id
+                owner_id=lead.assigned_to_id or current_user.id,
+                mailing_street=lead.address[:255] if lead.address else None
             )
             db.add(contact)
             db.flush()
