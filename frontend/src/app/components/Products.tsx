@@ -23,6 +23,15 @@ export function Products() {
     specifications: {} as Record<string, string>
   });
 
+  const getProductImageUrl = (url?: string) => {
+    if (!url) return "";
+    let cleanUrl = url.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, "");
+    if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+      return cleanUrl;
+    }
+    return cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
+  };
+
   const [formData, setFormData] = useState(getInitialFormState());
   const [specList, setSpecList] = useState<{key: string, value: string}[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -172,7 +181,7 @@ export function Products() {
               <div key={p.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col group">
                 <div className="h-48 bg-secondary/30 relative flex items-center justify-center border-b border-border overflow-hidden">
                   {p.image_url ? (
-                     <img src={`http://localhost:8000${p.image_url}`} onError={(e) => (e.currentTarget.src = p.image_url)} alt={p.name} className="w-full h-full object-cover" />
+                     <img src={getProductImageUrl(p.image_url)} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
                     <Package size={48} className="text-muted-foreground/30" />
                   )}
@@ -294,7 +303,7 @@ export function Products() {
                     <div className="flex items-center gap-4">
                       <div className="w-24 h-24 rounded-lg bg-secondary/50 border border-border flex items-center justify-center overflow-hidden shrink-0">
                         {formData.image_url ? (
-                          <img src={formData.image_url.startsWith('http') ? formData.image_url : `http://localhost:8000${formData.image_url}`} alt="Preview" className="w-full h-full object-cover" />
+                          <img src={getProductImageUrl(formData.image_url)} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
                           <Package size={24} className="text-muted-foreground/30" />
                         )}
