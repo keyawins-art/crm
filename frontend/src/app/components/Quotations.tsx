@@ -168,7 +168,7 @@ export function Quotations() {
             ...item,
             quantity: Number(item.quantity) || 1,
             unit_price: Number(item.unit_price) || 0,
-            tax_percent: item.tax_percent === "" ? 0 : Number(item.tax_percent)
+            tax_percent: (item.tax_percent === "" || item.tax_percent === null || item.tax_percent === undefined) ? 0 : Number(item.tax_percent)
           }))
       };
       if (!payload.account_id) delete (payload as any).account_id;
@@ -203,9 +203,9 @@ export function Quotations() {
       items: q.items && q.items.length > 0 ? q.items.map((i: any) => ({
         product_id: i.product_id || "",
         description: i.description || "",
-        quantity: i.quantity || 1,
-        unit_price: i.unit_price || 0,
-        tax_percent: i.tax_percent || 18
+        quantity: i.quantity !== undefined && i.quantity !== null ? Number(i.quantity) : 1,
+        unit_price: i.unit_price !== undefined && i.unit_price !== null ? Number(i.unit_price) : 0,
+        tax_percent: i.tax_percent !== undefined && i.tax_percent !== null ? Number(i.tax_percent) : 18
       })) : [{ product_id: "", description: "", quantity: 1, unit_price: 0, tax_percent: 18 }]
     });
     setIsAddModalOpen(true);
@@ -573,7 +573,7 @@ export function Quotations() {
                                 type="number" 
                                 required 
                                 min="1" 
-                                value={item.quantity === 0 ? "" : item.quantity} 
+                                value={item.quantity} 
                                 onFocus={(e) => e.target.select()}
                                 onChange={e => handleItemChange(index, "quantity", e.target.value === "" ? "" : Number(e.target.value))} 
                                 className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
@@ -586,7 +586,7 @@ export function Quotations() {
                                 required 
                                 min="0" 
                                 step="any"
-                                value={item.unit_price === 0 ? "" : item.unit_price} 
+                                value={item.unit_price} 
                                 onFocus={(e) => e.target.select()}
                                 onChange={e => handleItemChange(index, "unit_price", e.target.value === "" ? "" : Number(e.target.value))} 
                                 className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
@@ -599,11 +599,12 @@ export function Quotations() {
                                 required 
                                 min="0" 
                                 max="100" 
-                                value={item.tax_percent === 0 ? "" : item.tax_percent} 
+                                step="any"
+                                value={item.tax_percent} 
                                 onFocus={(e) => e.target.select()}
                                 onChange={e => handleItemChange(index, "tax_percent", e.target.value === "" ? "" : Number(e.target.value))} 
                                 className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
-                                placeholder="18"
+                                placeholder="0"
                               />
                             </td>
                             <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-foreground whitespace-nowrap">
