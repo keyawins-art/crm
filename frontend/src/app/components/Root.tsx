@@ -203,7 +203,7 @@ export function Root() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search contacts, deals, tasks..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-white/5 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary/40 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/50">⌘K</span>
             </div>

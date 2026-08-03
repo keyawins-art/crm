@@ -183,7 +183,7 @@ export function Accounts() {
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…"
-            className="pl-8 pr-3 py-1.5 text-xs bg-white/5 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors w-64" />
+            className="pl-8 pr-3 py-1.5 text-xs bg-secondary/40 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors w-64" />
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] font-mono text-muted-foreground">{total} customers</span>
