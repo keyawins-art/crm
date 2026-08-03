@@ -375,5 +375,5 @@ def get_sales_order_pdf(
     return StreamingResponse(
         pdf_buffer, 
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=SalesOrder_{obj.order_number}.pdf"}
+        headers={"Content-Disposition": f'attachment; filename="SalesOrder_{obj.order_number}.pdf"'}
     )

@@ -214,13 +214,14 @@ export function SalesOrders() {
     try {
       setIsDownloading(true);
       const res = await salesAPI.downloadPdf(id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `SalesOrder_${id.substring(0,8)}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (error) {
       console.error("Error downloading PDF", error);
       alert("Failed to download PDF");
