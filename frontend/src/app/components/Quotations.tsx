@@ -160,11 +160,19 @@ export function Quotations() {
   const handleAddQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...addFormData };
+      const payload = { 
+        ...addFormData,
+        items: addFormData.items
+          .filter(item => item.product_id !== "")
+          .map(item => ({
+            ...item,
+            quantity: Number(item.quantity) || 1,
+            unit_price: Number(item.unit_price) || 0,
+            tax_percent: item.tax_percent === "" ? 0 : Number(item.tax_percent)
+          }))
+      };
       if (!payload.account_id) delete (payload as any).account_id;
       if (!payload.opportunity_id) delete (payload as any).opportunity_id;
-      // Filter out invalid items
-      payload.items = payload.items.filter(item => item.product_id !== "");
       
       if (editingId) {
         await quotationsAPI.update(editingId, payload);
@@ -254,9 +262,12 @@ export function Quotations() {
     let tax = 0;
     addFormData.items.forEach(item => {
       if (!item.product_id) return;
-      const amount = (item.quantity || 0) * (item.unit_price || 0);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxPct = Number(item.tax_percent) || 0;
+      const amount = qty * price;
       subtotal += amount;
-      tax += amount * ((item.tax_percent || 0) / 100);
+      tax += amount * (taxPct / 100);
     });
     return { subtotal, tax, grandTotal: subtotal + tax };
   };
@@ -514,19 +525,22 @@ export function Quotations() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[10px] uppercase font-semibold text-muted-foreground">
-                        <th className="px-3 py-2 text-left w-[25%]">Product</th>
-                        <th className="px-3 py-2 text-left w-[25%]">Description / Details</th>
-                        <th className="px-3 py-2 text-right w-[10%]">Qty</th>
-                        <th className="px-3 py-2 text-right w-[10%]">Unit Price (₹)</th>
+                        <th className="px-3 py-2 text-left w-[22%]">Product</th>
+                        <th className="px-3 py-2 text-left w-[22%]">Description / Details</th>
+                        <th className="px-3 py-2 text-right w-[8%]">Qty</th>
+                        <th className="px-3 py-2 text-right w-[18%]">Unit Price (₹)</th>
                         <th className="px-3 py-2 text-right w-[10%]">GST %</th>
-                        <th className="px-3 py-2 text-right w-[10%]">Total (₹)</th>
-                        <th className="px-2 py-2 text-center w-[10%]"></th>
+                        <th className="px-3 py-2 text-right w-[16%]">Total (₹)</th>
+                        <th className="px-2 py-2 text-center w-[4%]"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {addFormData.items.map((item, index) => {
-                        const amount = (item.quantity || 0) * (item.unit_price || 0);
-                        const tax = amount * ((item.tax_percent || 0) / 100);
+                        const qty = Number(item.quantity) || 0;
+                        const price = Number(item.unit_price) || 0;
+                        const taxPct = Number(item.tax_percent) || 0;
+                        const amount = qty * price;
+                        const tax = amount * (taxPct / 100);
                         const totalLine = amount + tax;
                         return (
                           <tr key={index} className="border-b border-border last:border-0">
@@ -555,15 +569,44 @@ export function Quotations() {
                               </div>
                             </td>
                             <td className="px-3 py-2">
-                              <input type="number" required min="1" value={item.quantity} onChange={e => handleItemChange(index, "quantity", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                              <input 
+                                type="number" 
+                                required 
+                                min="1" 
+                                value={item.quantity === 0 ? "" : item.quantity} 
+                                onFocus={(e) => e.target.select()}
+                                onChange={e => handleItemChange(index, "quantity", e.target.value === "" ? "" : Number(e.target.value))} 
+                                className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
+                                placeholder="1"
+                              />
                             </td>
                             <td className="px-3 py-2">
-                              <input type="number" required min="0" value={item.unit_price} onChange={e => handleItemChange(index, "unit_price", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                              <input 
+                                type="number" 
+                                required 
+                                min="0" 
+                                step="any"
+                                value={item.unit_price === 0 ? "" : item.unit_price} 
+                                onFocus={(e) => e.target.select()}
+                                onChange={e => handleItemChange(index, "unit_price", e.target.value === "" ? "" : Number(e.target.value))} 
+                                className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
+                                placeholder="0"
+                              />
                             </td>
                             <td className="px-3 py-2">
-                              <input type="number" required min="0" max="100" value={item.tax_percent} onChange={e => handleItemChange(index, "tax_percent", Number(e.target.value))} className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary" />
+                              <input 
+                                type="number" 
+                                required 
+                                min="0" 
+                                max="100" 
+                                value={item.tax_percent === 0 ? "" : item.tax_percent} 
+                                onFocus={(e) => e.target.select()}
+                                onChange={e => handleItemChange(index, "tax_percent", e.target.value === "" ? "" : Number(e.target.value))} 
+                                className="w-full px-2 py-1 bg-secondary/30 border border-border rounded text-xs text-right text-foreground focus:outline-none focus:border-primary font-mono" 
+                                placeholder="18"
+                              />
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-[11px] text-foreground">
+                            <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-foreground whitespace-nowrap">
                               {fmt(totalLine)}
                             </td>
                             <td className="px-2 py-2 text-center">
