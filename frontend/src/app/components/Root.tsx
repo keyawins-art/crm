@@ -211,9 +211,17 @@ export function Root() {
 
           <div className="ml-auto flex items-center gap-3">
             <button 
+              onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-primary via-indigo-500 to-purple-600 text-white rounded-lg text-xs font-medium hover:opacity-95 transition-all shadow-xs shrink-0 cursor-pointer"
+              title="Ask CRM AI Copilot"
+            >
+              <Sparkles size={13} className="animate-pulse" />
+              <span>AI Copilot</span>
+            </button>
+            <button 
               onClick={toggleTheme} 
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`} 
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors cursor-pointer"
             >
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>

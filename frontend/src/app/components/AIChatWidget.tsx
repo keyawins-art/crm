@@ -31,6 +31,10 @@ export function AIChatWidget() {
         if (res.data.model) setModel(res.data.model);
       })
       .catch(() => setReady(false));
+
+    const handleOpenEvent = () => setIsOpen(true);
+    window.addEventListener("open-ai-chat", handleOpenEvent);
+    return () => window.removeEventListener("open-ai-chat", handleOpenEvent);
   }, []);
 
   useEffect(() => {
