@@ -33,6 +33,7 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
+        cache-dependency-path: 'backend/requirements.txt'
         
     - name: Install dependencies
       working-directory: ./backend
@@ -50,3 +51,20 @@ jobs:
         ENCRYPTION_KEY: qR5zN9Z8d8V7b9c9V2t9C4v2x4Q8c7w8D2q2M5n5H8c=
       run: |
         pytest
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+    - name: Install and Build Frontend
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm run build
+
