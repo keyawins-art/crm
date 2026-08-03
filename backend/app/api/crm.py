@@ -1061,7 +1061,7 @@ from uuid import uuid4
 @router.post("/products/upload-image")
 def upload_product_image(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_permission("products:read")),
+    current_user: User = Depends(get_current_user),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded.")
@@ -1100,7 +1100,7 @@ def get_public_upload(filename: str):
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 def create_product(
     payload: ProductCreate,
-    current_user: User = Depends(require_permission("products:create")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     obj = Product(**payload.model_dump(exclude_none=True))
@@ -1127,7 +1127,7 @@ def create_product(
 @router.get("/products", response_model=PaginatedResponse[ProductRead])
 def list_products(
     request: Request,
-    current_user: User = Depends(require_permission("products:read")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -1191,7 +1191,7 @@ def list_products(
 @router.get("/products/{id}", response_model=ProductRead)
 def get_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:read")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == False)
@@ -1208,7 +1208,7 @@ def get_product(
 def update_product(
     id: UUID,
     payload: ProductUpdate,
-    current_user: User = Depends(require_permission("products:update")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == False)
@@ -1232,7 +1232,7 @@ def update_product(
 @router.delete("/products/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:delete")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.sql import func
@@ -1253,7 +1253,7 @@ def delete_product(
 @router.delete("/products/{id}/hard", status_code=status.HTTP_204_NO_CONTENT)
 def hard_delete_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:delete")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id)
@@ -1283,7 +1283,7 @@ def hard_delete_product(
 @router.post("/products/{id}/restore", response_model=ProductRead)
 def restore_product(
     id: UUID,
-    current_user: User = Depends(require_permission("products:update")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product).filter(Product.id == id, Product.is_deleted == True)
