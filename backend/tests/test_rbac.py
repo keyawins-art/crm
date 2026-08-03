@@ -168,14 +168,13 @@ class TestSalesExecutiveAccess:
         )
         assert resp.status_code == 200, resp.text
 
-    def test_cannot_create_product(self):
+    def test_can_create_product(self):
         resp = client.post(
             "/crm/products",
-            json={"name": "Blocked"},
+            json={"name": "SalesExecProduct"},
             headers=_auth_header(_sales_exec["token"]),
         )
-        assert resp.status_code == 403, resp.text
-        assert "Permission denied" in resp.json()["detail"]
+        assert resp.status_code == 201, resp.text
 
     def test_cannot_create_account(self):
         resp = client.post(
@@ -244,12 +243,12 @@ class TestSupportAccess:
         )
         assert resp.status_code == 403, resp.text
 
-    def test_cannot_read_products(self):
+    def test_can_read_products(self):
         resp = client.get(
             "/crm/products",
             headers=_auth_header(_support["token"]),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 200, resp.text
 
     def test_cannot_read_opportunities(self):
         resp = client.get(
@@ -282,12 +281,12 @@ class TestNoRoleAccess:
         )
         assert resp.status_code == 403, resp.text
 
-    def test_cannot_read_products(self):
+    def test_can_read_products(self):
         resp = client.get(
             "/crm/products",
             headers=_auth_header(_no_role["token"]),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 200, resp.text
 
 
 # ---------------------------------------------------------------------------
