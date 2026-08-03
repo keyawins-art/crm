@@ -60,10 +60,25 @@ export function Contacts() {
 
   const filtered = contacts
     .filter(c => {
-      const q = search.toLowerCase();
-      const name = `${c.first_name} ${c.last_name}`.toLowerCase();
-      const matchSearch = !q || name.includes(q) || (c.email || "").toLowerCase().includes(q);
-      return matchSearch;
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      const name = `${c.first_name || ""} ${c.last_name || ""}`.toLowerCase();
+      const cleanQ = q.replace(/\D/g, "");
+      const cleanPhone = (c.phone || "").replace(/\D/g, "");
+      const cleanMobile = (c.mobile || "").replace(/\D/g, "");
+
+      return (
+        name.includes(q) ||
+        (c.email || "").toLowerCase().includes(q) ||
+        (c.phone || "").toLowerCase().includes(q) ||
+        (c.mobile || "").toLowerCase().includes(q) ||
+        (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+        (cleanQ.length > 2 && cleanMobile.includes(cleanQ)) ||
+        (c.title || "").toLowerCase().includes(q) ||
+        (c.department || "").toLowerCase().includes(q) ||
+        (c.account?.name || "").toLowerCase().includes(q) ||
+        (c.mailing_city || "").toLowerCase().includes(q)
+      );
     })
     .sort((a, b) => {
       let va = a[sort] || "";

@@ -126,10 +126,28 @@ export function Leads() {
   };
 
   const filtered = [...leads].filter(l => {
-    const q = search.toLowerCase();
-    const name = `${l.first_name || ""} ${l.last_name || ""}`.toLowerCase();
-    const matchSearch = !q || name.includes(q) || (l.email || "").toLowerCase().includes(q) || (l.company || "").toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
     const matchStatus = statusFilter === "All" || l.status === statusFilter;
+    if (!q) return matchStatus;
+
+    const name = `${l.first_name || ""} ${l.last_name || ""}`.toLowerCase();
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = (l.phone || "").replace(/\D/g, "");
+    const cleanMobile = (l.mobile || "").replace(/\D/g, "");
+
+    const matchSearch = (
+      name.includes(q) ||
+      (l.company || "").toLowerCase().includes(q) ||
+      (l.email || "").toLowerCase().includes(q) ||
+      (l.phone || "").toLowerCase().includes(q) ||
+      (l.mobile || "").toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+      (cleanQ.length > 2 && cleanMobile.includes(cleanQ)) ||
+      (l.address || "").toLowerCase().includes(q) ||
+      (l.requirements || "").toLowerCase().includes(q) ||
+      (l.remarks || "").toLowerCase().includes(q) ||
+      (l.source || "").toLowerCase().includes(q)
+    );
     return matchSearch && matchStatus;
   }).sort((a, b) => {
     if (sortByPriority) {

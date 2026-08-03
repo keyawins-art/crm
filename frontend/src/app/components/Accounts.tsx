@@ -115,14 +115,27 @@ export function Accounts() {
   };
 
   const filtered = accounts.filter(a => {
-    const q = search.toLowerCase();
-    return !q || 
-           a.name?.toLowerCase().includes(q) || 
-           a.contact_name?.toLowerCase().includes(q) ||
-           a.phone?.toLowerCase().includes(q) ||
-           a.gst_number?.toLowerCase().includes(q) ||
-           a.billing_city?.toLowerCase().includes(q) ||
-           a.product_of_interest?.toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = (a.phone || "").replace(/\D/g, "");
+
+    return (
+      a.name?.toLowerCase().includes(q) ||
+      a.contact_name?.toLowerCase().includes(q) ||
+      a.email?.toLowerCase().includes(q) ||
+      a.phone?.toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+      a.gst_number?.toLowerCase().includes(q) ||
+      a.pan_number?.toLowerCase().includes(q) ||
+      a.billing_city?.toLowerCase().includes(q) ||
+      a.billing_state?.toLowerCase().includes(q) ||
+      a.billing_street?.toLowerCase().includes(q) ||
+      a.billing_pincode?.toLowerCase().includes(q) ||
+      a.product_of_interest?.toLowerCase().includes(q) ||
+      a.source?.toLowerCase().includes(q) ||
+      a.type?.toLowerCase().includes(q)
+    );
   });
 
   const loadActivities = async (accountId: string) => {

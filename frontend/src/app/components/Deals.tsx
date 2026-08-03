@@ -146,8 +146,22 @@ export function Deals() {
   };
 
   const filtered = deals.filter(d => {
-    const q = search.toLowerCase();
-    return !q || d.name?.toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = (d.account?.phone || d.contact?.phone || "").replace(/\D/g, "");
+
+    return (
+      d.name?.toLowerCase().includes(q) ||
+      d.account?.name?.toLowerCase().includes(q) ||
+      d.account?.contact_name?.toLowerCase().includes(q) ||
+      d.contact?.first_name?.toLowerCase().includes(q) ||
+      d.contact?.last_name?.toLowerCase().includes(q) ||
+      d.contact?.email?.toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+      String(d.amount || "").includes(q) ||
+      d.stage?.toLowerCase().includes(q)
+    );
   });
 
   const byStage = (s: string) => filtered.filter(d => d.stage === s);

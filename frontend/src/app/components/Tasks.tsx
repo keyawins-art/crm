@@ -104,8 +104,23 @@ export function Tasks() {
   const todayStr = new Date().toISOString().split("T")[0];
 
   const filtered = tasks.filter(t => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || t.title.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
+    const contact = contactsMap[t.contact_id || ""];
+    const account = accountsMap[t.account_id || ""];
+    const contactName = contact ? `${contact.first_name || ""} ${contact.last_name || ""}`.toLowerCase() : "";
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = ((contact?.phone || contact?.mobile || account?.phone) || "").replace(/\D/g, "");
+
+    const matchSearch = !q || (
+      t.title?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q) ||
+      t.task_type?.toLowerCase().includes(q) ||
+      t.status?.toLowerCase().includes(q) ||
+      t.priority?.toLowerCase().includes(q) ||
+      contactName.includes(q) ||
+      (account?.name || "").toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ))
+    );
     if (!matchSearch) return false;
     
     const due = t.due_date ? t.due_date.split("T")[0] : null;

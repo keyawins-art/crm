@@ -35,8 +35,22 @@ export function Invoices() {
   };
 
   const filtered = invoices.filter(inv => {
-    const q = search.toLowerCase();
-    return !q || inv.invoice_number?.toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = (inv.sales_order?.account?.phone || "").replace(/\D/g, "");
+
+    return (
+      inv.invoice_number?.toLowerCase().includes(q) ||
+      inv.sales_order?.order_number?.toLowerCase().includes(q) ||
+      inv.sales_order?.account?.name?.toLowerCase().includes(q) ||
+      inv.sales_order?.account?.contact_name?.toLowerCase().includes(q) ||
+      inv.sales_order?.account?.email?.toLowerCase().includes(q) ||
+      inv.sales_order?.account?.phone?.toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+      String(inv.total_amount || "").includes(q) ||
+      inv.status?.toLowerCase().includes(q)
+    );
   });
 
   const fmt = (v: number | null) => v != null ? `₹${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";

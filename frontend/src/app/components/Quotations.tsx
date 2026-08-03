@@ -304,11 +304,23 @@ export function Quotations() {
   };
 
   const filtered = quotations.filter(q => {
-    const term = search.toLowerCase();
-    return !term || 
-           q.quote_number?.toLowerCase().includes(term) || 
-           q.subject?.toLowerCase().includes(term) ||
-           q.account?.name?.toLowerCase().includes(term);
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const cleanQ = term.replace(/\D/g, "");
+    const cleanPhone = (q.account?.phone || "").replace(/\D/g, "");
+
+    return (
+      q.quote_number?.toLowerCase().includes(term) || 
+      q.subject?.toLowerCase().includes(term) ||
+      q.account?.name?.toLowerCase().includes(term) ||
+      q.account?.contact_name?.toLowerCase().includes(term) ||
+      q.account?.email?.toLowerCase().includes(term) ||
+      q.account?.phone?.toLowerCase().includes(term) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ)) ||
+      q.billing_address?.toLowerCase().includes(term) ||
+      q.shipping_address?.toLowerCase().includes(term) ||
+      q.items?.some((i: any) => i.description?.toLowerCase().includes(term))
+    );
   });
 
   const fmt = (v: number | null) => v != null ? `₹${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";

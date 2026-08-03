@@ -300,9 +300,21 @@ export function SalesOrders() {
   };
 
   const filtered = orders.filter(o => {
-    const q = search.toLowerCase();
-    const matchQ = !q || o.number.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q) || o.company.toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
     const matchS = statusFilter === "All" || o.status === statusFilter;
+    if (!q) return matchS;
+
+    const cleanQ = q.replace(/\D/g, "");
+    const cleanPhone = ((o.phone || "")).replace(/\D/g, "");
+
+    const matchQ = (
+      (o.number || "").toLowerCase().includes(q) || 
+      (o.customer || "").toLowerCase().includes(q) || 
+      (o.company || "").toLowerCase().includes(q) ||
+      (o.phone || "").toLowerCase().includes(q) ||
+      (o.email || "").toLowerCase().includes(q) ||
+      (cleanQ.length > 2 && cleanPhone.includes(cleanQ))
+    );
     return matchQ && matchS;
   });
 
