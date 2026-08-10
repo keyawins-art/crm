@@ -8,16 +8,16 @@ from .base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 
 
 class ContactSalutation(str, enum.Enum):
-    MR = "Mr"
-    MRS = "Mrs"
-    MS = "Ms"
-    DR = "Dr"
-    PROF = "Prof"
+    MR = "MR"
+    MRS = "MRS"
+    MS = "MS"
+    DR = "DR"
+    PROF = "PROF"
 
 
 class ContactStatus(str, enum.Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
 
 
 class Contact(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

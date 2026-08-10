@@ -68,7 +68,12 @@ export function Leads() {
     try {
       setLoading(true);
       const res = await leadsAPI.list(page, 20);
-      setLeads(res.data.items || []);
+      const items = (res.data.items || []).map((l: any) => ({
+        ...l,
+        status: l.status ? l.status.toLowerCase() : "new",
+        source: l.source ? l.source.toLowerCase() : "",
+      }));
+      setLeads(items);
       setTotal(res.data.total || 0);
     } catch (err) {
       console.error("Failed to load leads:", err);
@@ -105,9 +110,14 @@ export function Leads() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...formData };
+      const payload = {
+        ...formData,
+        status: formData.status ? formData.status.toUpperCase() : "NEW",
+        source: formData.source ? formData.source.toUpperCase() : undefined,
+      };
       if (!payload.assigned_to_id) delete (payload as any).assigned_to_id;
       if (!payload.email) delete (payload as any).email;
+      if (!payload.source) delete (payload as any).source;
       if (!payload.next_followup_date) delete (payload as any).next_followup_date;
       else payload.next_followup_date = new Date(payload.next_followup_date).toISOString();
 

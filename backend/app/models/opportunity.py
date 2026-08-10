@@ -9,34 +9,34 @@ from .base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 
 
 class OpportunityStage(str, enum.Enum):
-    PROSPECTING = "prospecting"
-    QUALIFICATION = "qualification"
-    NEEDS_ANALYSIS = "needs_analysis"
-    VALUE_PROPOSITION = "value_proposition"
-    ID_DECISION_MAKERS = "id_decision_makers"
-    PERCEPTION_ANALYSIS = "perception_analysis"
-    PROPOSAL = "proposal"
-    NEGOTIATION = "negotiation"
-    CLOSED_WON = "closed_won"
-    CLOSED_LOST = "closed_lost"
+    PROSPECTING = "PROSPECTING"
+    QUALIFICATION = "QUALIFICATION"
+    NEEDS_ANALYSIS = "NEEDS_ANALYSIS"
+    VALUE_PROPOSITION = "VALUE_PROPOSITION"
+    ID_DECISION_MAKERS = "ID_DECISION_MAKERS"
+    PERCEPTION_ANALYSIS = "PERCEPTION_ANALYSIS"
+    PROPOSAL = "PROPOSAL"
+    NEGOTIATION = "NEGOTIATION"
+    CLOSED_WON = "CLOSED_WON"
+    CLOSED_LOST = "CLOSED_LOST"
 
 
 class OpportunityType(str, enum.Enum):
-    NEW_BUSINESS = "new_business"
-    EXISTING_BUSINESS = "existing_business"
-    RENEWAL = "renewal"
-    UPSELL = "upsell"
-    CROSS_SELL = "cross_sell"
+    NEW_BUSINESS = "NEW_BUSINESS"
+    EXISTING_BUSINESS = "EXISTING_BUSINESS"
+    RENEWAL = "RENEWAL"
+    UPSELL = "UPSELL"
+    CROSS_SELL = "CROSS_SELL"
 
 
 class QuotationStatus(str, enum.Enum):
-    DRAFT = "draft"
-    SENT = "sent"
-    APPROVED = "approved"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    EXPIRED = "expired"
-    CANCELLED = "cancelled"
+    DRAFT = "DRAFT"
+    SENT = "SENT"
+    APPROVED = "APPROVED"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
 
 
 class Opportunity(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

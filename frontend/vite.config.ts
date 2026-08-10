@@ -20,22 +20,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Expose to local network
     proxy: {
-      '/crm': {
-        target: 'http://localhost:8000',
-        bypass: (req) => (req.headers.accept?.includes('html') ? req.url : undefined),
-      },
-      '/auth': {
-        target: 'http://localhost:8000',
-        bypass: (req) => (req.headers.accept?.includes('html') ? req.url : undefined),
-      },
-      '/dashboard': {
-        target: 'http://localhost:8000',
-        bypass: (req) => (req.headers.accept?.includes('html') ? req.url : undefined),
-      },
-      '/ai': {
-        target: 'http://localhost:8000',
-        bypass: (req) => (req.headers.accept?.includes('html') ? req.url : undefined),
-      },
+      '/crm': 'http://localhost:8000',
+      '/auth': 'http://localhost:8000',
+      '/dashboard': 'http://localhost:8000',
+      '/ai': 'http://localhost:8000',
     }
   },
   plugins: [

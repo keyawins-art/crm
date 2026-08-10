@@ -83,7 +83,7 @@ const calcOrderTotal = (items: LineItem[]) =>
   items.reduce((s, i) => s + i.qty * i.unitPrice * (1 - i.discount / 100), 0);
 
 const fmt = (n: number) =>
-  n >= 1000 ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : `$${n}`;
+  n >= 1000 ? `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : `₹${n}`;
 
 const monthlyData = [
   { month: "Jan", orders: 18, revenue: 312 },
@@ -101,7 +101,7 @@ const ChartTip = ({ active, payload, label }: any) => {
       <p className="text-muted-foreground mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.stroke || p.fill }} className="font-semibold">
-          {p.name}: {p.dataKey === "revenue" ? `$${p.value}k` : p.value}
+          {p.name}: {p.dataKey === "revenue" ? `₹${p.value}k` : p.value}
         </p>
       ))}
     </div>

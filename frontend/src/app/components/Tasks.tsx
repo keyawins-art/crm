@@ -78,7 +78,12 @@ export function Tasks() {
         usersAPI.list()
       ]);
       
-      setTasks(tasksRes.data.items || []);
+      const items = (tasksRes.data.items || []).map((t: any) => ({
+        ...t,
+        status: t.status ? t.status.toLowerCase() : "pending",
+        priority: t.priority ? t.priority.toLowerCase() : "medium",
+      }));
+      setTasks(items);
       
       const accMap: any = {};
       (accountsRes.data.items || []).forEach((a: any) => accMap[a.id] = a);
@@ -151,7 +156,7 @@ export function Tasks() {
     
     try {
       const newStatus = currentStatus === "completed" ? "pending" : "completed";
-      await tasksAPI.update(id, { status: newStatus });
+      await tasksAPI.update(id, { status: newStatus.toUpperCase() });
       setTasks(tasks.map(t => t.id === id ? { ...t, status: newStatus as TaskStatus } : t));
       if (next.has(id)) next.delete(id); // uncheck visually since status is now updated
       setChecked(new Set(next));
@@ -186,6 +191,8 @@ export function Tasks() {
     try {
       const payload = {
         ...formData,
+        status: formData.status ? formData.status.toUpperCase() : "PENDING",
+        priority: formData.priority ? formData.priority.toUpperCase() : "MEDIUM",
         due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
         account_id: formData.account_id || null,
         contact_id: formData.contact_id || null,

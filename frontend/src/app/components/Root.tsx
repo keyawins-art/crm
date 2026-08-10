@@ -61,7 +61,7 @@ export function Root() {
   const userInitials = user ? `${(user.first_name || "U")[0]}${(user.last_name || "")[0]}`.toUpperCase() : "U";
   const userName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "User";
   const userRole = user?.role || "Sales Executive";
-  const isAdmin = userRole === "Admin" || userRole === "System Administrator";
+  const isAdmin = !!userRole && (userRole.toLowerCase().includes("admin") || userRole === "System Administrator");
 
   const currentNavItems = isAdmin 
     ? [...navItems, { to: "/admin", icon: Shield, label: "Admin Panel" }] 

@@ -8,25 +8,25 @@ from .base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 
 
 class AccountType(str, enum.Enum):
-    PROSPECT = "prospect"
-    CUSTOMER = "customer"
-    PARTNER = "partner"
-    VENDOR = "vendor"
-    COMPETITOR = "competitor"
-    OTHER = "other"
+    PROSPECT = "PROSPECT"
+    CUSTOMER = "CUSTOMER"
+    PARTNER = "PARTNER"
+    VENDOR = "VENDOR"
+    COMPETITOR = "COMPETITOR"
+    OTHER = "OTHER"
 
 
 class AccountIndustry(str, enum.Enum):
-    TECHNOLOGY = "technology"
-    FINANCE = "finance"
-    HEALTHCARE = "healthcare"
-    EDUCATION = "education"
-    MANUFACTURING = "manufacturing"
-    RETAIL = "retail"
-    REAL_ESTATE = "real_estate"
-    HOSPITALITY = "hospitality"
-    LOGISTICS = "logistics"
-    OTHER = "other"
+    TECHNOLOGY = "TECHNOLOGY"
+    FINANCE = "FINANCE"
+    HEALTHCARE = "HEALTHCARE"
+    EDUCATION = "EDUCATION"
+    MANUFACTURING = "MANUFACTURING"
+    RETAIL = "RETAIL"
+    REAL_ESTATE = "REAL_ESTATE"
+    HOSPITALITY = "HOSPITALITY"
+    LOGISTICS = "LOGISTICS"
+    OTHER = "OTHER"
 
 
 class Account(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

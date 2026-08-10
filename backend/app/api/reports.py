@@ -47,7 +47,7 @@ def get_sales_report(
     
     return [
         {
-            "stage": result.stage.value if hasattr(result.stage, 'value') else result.stage,
+            "stage": (result.stage.value if hasattr(result.stage, 'value') else str(result.stage)).lower(),
             "count": result.count,
             "total_amount": float(result.total_amount or 0)
         }
@@ -74,13 +74,17 @@ def get_revenue_report(
     query = apply_rls(query, current_user, Opportunity)
     
     results = query.group_by("month").order_by("month").all()
-    
-    # Format months (1=Jan, 2=Feb, etc)
     months_map = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun", 7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
     
+    def parse_m(m):
+        try:
+            return int(str(m).split("-")[-1])
+        except Exception:
+            return 1
+
     return [
         {
-            "month": months_map.get(int(result.month), str(result.month)),
+            "month": months_map.get(parse_m(result.month), str(result.month)),
             "revenue": float(result.revenue or 0)
         }
         for result in results
@@ -103,7 +107,7 @@ def get_lead_funnel(
     
     return [
         {
-            "status": result.status.value if hasattr(result.status, 'value') else result.status,
+            "status": (result.status.value if hasattr(result.status, 'value') else str(result.status)).lower(),
             "count": result.count
         }
         for result in results

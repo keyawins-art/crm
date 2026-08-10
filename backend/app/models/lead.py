@@ -9,48 +9,48 @@ from .base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 # ─── Enums ────────────────────────────────────────────────────────────────────
 
 class LeadSourceType(str, enum.Enum):
-    WEBSITE = "website"
-    COLD_CALL = "cold_call"
-    REFERRAL = "referral"
-    SOCIAL_MEDIA = "social_media"
-    EMAIL_CAMPAIGN = "email_campaign"
-    TRADE_SHOW = "trade_show"
-    ADVERTISEMENT = "advertisement"
-    PARTNER = "partner"
-    OTHER = "other"
+    WEBSITE = "WEBSITE"
+    COLD_CALL = "COLD_CALL"
+    REFERRAL = "REFERRAL"
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"
+    EMAIL_CAMPAIGN = "EMAIL_CAMPAIGN"
+    TRADE_SHOW = "TRADE_SHOW"
+    ADVERTISEMENT = "ADVERTISEMENT"
+    PARTNER = "PARTNER"
+    OTHER = "OTHER"
 
 
 class LeadStatus(str, enum.Enum):
-    NEW = "new"
-    ASSIGNED = "assigned"
-    IN_PROCESS = "in_process"
-    CONVERTED = "converted"
-    RECYCLED = "recycled"
-    DEAD = "dead"
+    NEW = "NEW"
+    ASSIGNED = "ASSIGNED"
+    IN_PROCESS = "IN_PROCESS"
+    CONVERTED = "CONVERTED"
+    RECYCLED = "RECYCLED"
+    DEAD = "DEAD"
 
 
 class LeadRating(str, enum.Enum):
-    HOT = "hot"
-    WARM = "warm"
-    COLD = "cold"
+    HOT = "HOT"
+    WARM = "WARM"
+    COLD = "COLD"
 
 
 class ActivityType(str, enum.Enum):
-    CALL = "call"
-    EMAIL = "email"
-    MEETING = "meeting"
-    DEMO = "demo"
-    FOLLOW_UP = "follow_up"
-    OTHER = "other"
+    CALL = "CALL"
+    EMAIL = "EMAIL"
+    MEETING = "MEETING"
+    DEMO = "DEMO"
+    FOLLOW_UP = "FOLLOW_UP"
+    OTHER = "OTHER"
 
 
 class ActivityOutcome(str, enum.Enum):
-    INTERESTED = "interested"
-    NOT_INTERESTED = "not_interested"
-    CALLBACK = "callback"
-    NO_ANSWER = "no_answer"
-    LEFT_MESSAGE = "left_message"
-    OTHER = "other"
+    INTERESTED = "INTERESTED"
+    NOT_INTERESTED = "NOT_INTERESTED"
+    CALLBACK = "CALLBACK"
+    NO_ANSWER = "NO_ANSWER"
+    LEFT_MESSAGE = "LEFT_MESSAGE"
+    OTHER = "OTHER"
 
 
 # ─── Models ───────────────────────────────────────────────────────────────────
