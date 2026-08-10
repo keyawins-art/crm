@@ -300,6 +300,7 @@ class UserRead(CRMBase):
     phone: Optional[str] = None
     status: Optional[str] = None
     role_id: Optional[UUID] = None
+    role: Optional["RoleRead"] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -396,3 +397,6 @@ class AuditLogRead(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+AccountRead.model_rebuild()
+UserRead.model_rebuild()

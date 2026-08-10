@@ -9,19 +9,19 @@ from .base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 
 
 class ProductStatus(str, enum.Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DISCONTINUED = "discontinued"
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    DISCONTINUED = "DISCONTINUED"
 
 
 class ProductCategory(str, enum.Enum):
-    SOFTWARE = "software"
-    HARDWARE = "hardware"
-    SERVICE = "service"
-    SUBSCRIPTION = "subscription"
-    CONSULTING = "consulting"
-    SUPPORT = "support"
-    OTHER = "other"
+    SOFTWARE = "SOFTWARE"
+    HARDWARE = "HARDWARE"
+    SERVICE = "SERVICE"
+    SUBSCRIPTION = "SUBSCRIPTION"
+    CONSULTING = "CONSULTING"
+    SUPPORT = "SUPPORT"
+    OTHER = "OTHER"
 
 
 class Product(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

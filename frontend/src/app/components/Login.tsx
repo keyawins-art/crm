@@ -54,7 +54,7 @@ export function Login() {
         {/* Decorative stats */}
         <div className="grid grid-cols-2 gap-4">
           {[
-            { label: "Deals Closed", value: "$2.4M", sub: "This quarter" },
+            { label: "Deals Closed", value: "₹2.4M", sub: "This quarter" },
             { label: "Win Rate", value: "38.9%", sub: "+2.3pp vs last" },
             { label: "Active Leads", value: "143", sub: "48 qualified" },
             { label: "Team Members", value: "12", sub: "3 departments" },

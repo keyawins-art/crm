@@ -23,40 +23,60 @@ export function Dashboard() {
   const userName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "User";
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [statsRes, revRes, pipeRes, smartRes] = await Promise.all([
+        const [statsResult, revResult, pipeResult, smartResult] = await Promise.allSettled([
           dashboardAPI.stats(),
           reportsAPI.revenue(),
           reportsAPI.sales(),
           dashboardAPI.smart(),
         ]);
 
-        setStats(statsRes.data);
+        if (!isMounted) return;
 
-        const rev = revRes.data.map((r: any) => ({
-          month: r.month,
-          revenue: r.revenue,
-        }));
-        setRevenueData(rev);
+        if (statsResult.status === "fulfilled" && statsResult.value?.data) {
+          setStats(statsResult.value.data);
+        }
 
-        const pipe = pipeRes.data.map((p: any) => ({
-          stage: (p.stage || "").replace("_", " "),
-          count: p.count,
-          value: p.total_amount,
-        }));
-        setPipelineData(pipe);
+        if (revResult.status === "fulfilled" && Array.isArray(revResult.value?.data)) {
+          setRevenueData(
+            revResult.value.data.map((r: any) => ({
+              month: r.month,
+              revenue: r.revenue,
+            }))
+          );
+        }
 
-        setSmartData(smartRes.data);
+        if (pipeResult.status === "fulfilled" && Array.isArray(pipeResult.value?.data)) {
+          setPipelineData(
+            pipeResult.value.data.map((p: any) => ({
+              stage: (p.stage || "").replace("_", " "),
+              count: p.count,
+              value: p.total_amount,
+            }))
+          );
+        }
+
+        if (smartResult.status === "fulfilled" && smartResult.value?.data) {
+          setSmartData(smartResult.value.data);
+        }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const kpis = stats

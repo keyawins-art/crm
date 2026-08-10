@@ -135,7 +135,11 @@ export function Quotations() {
     try {
       setLoading(true);
       const res = await quotationsAPI.list(1, 50);
-      setQuotations(res.data.items || []);
+      const items = (res.data.items || []).map((q: any) => ({
+        ...q,
+        status: q.status ? q.status.toLowerCase() : "draft",
+      }));
+      setQuotations(items);
       setTotal(res.data.total || 0);
     } catch (err) {
       console.error("Failed to load quotations:", err);
@@ -162,6 +166,7 @@ export function Quotations() {
     try {
       const payload = { 
         ...addFormData,
+        status: addFormData.status ? addFormData.status.toUpperCase() : "DRAFT",
         items: addFormData.items
           .filter(item => item.product_id !== "" || (Number(item.unit_price) || 0) > 0 || (Number(item.quantity) || 0) > 0)
           .map(item => ({
@@ -379,7 +384,7 @@ export function Quotations() {
                         disabled={q.status === 'accepted'}
                         onChange={async (e) => {
                           try {
-                            await quotationsAPI.update(q.id, { status: e.target.value });
+                            await quotationsAPI.update(q.id, { status: e.target.value.toUpperCase() });
                             loadQuotations();
                           } catch (err) {
                             console.error("Failed to update status:", err);

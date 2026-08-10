@@ -89,7 +89,11 @@ export function Deals() {
     try {
       setLoading(true);
       const res = await opportunitiesAPI.list(1, 100);
-      setDeals(res.data.items || []);
+      const items = (res.data.items || []).map((d: any) => ({
+        ...d,
+        stage: d.stage ? d.stage.toLowerCase() : "prospecting",
+      }));
+      setDeals(items);
     } catch (err) {
       console.error("Failed to load deals:", err);
     } finally {
@@ -100,7 +104,7 @@ export function Deals() {
   const handleAddDeal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...addFormData, amount: parseFloat(addFormData.amount) || 0 };
+      const payload = { ...addFormData, amount: parseFloat(addFormData.amount) || 0, stage: addFormData.stage.toUpperCase() };
       if (!payload.account_id) delete (payload as any).account_id;
       if (!payload.lead_id) delete (payload as any).lead_id;
 
@@ -131,7 +135,7 @@ export function Deals() {
     e.preventDefault();
     if (!selectedDeal) return;
     try {
-      const payload = { ...editFormData, amount: parseFloat(editFormData.amount) || 0 };
+      const payload = { ...editFormData, amount: parseFloat(editFormData.amount) || 0, stage: editFormData.stage.toUpperCase() };
       if (!payload.account_id) delete (payload as any).account_id;
       if (!payload.lead_id) delete (payload as any).lead_id;
 
@@ -302,7 +306,7 @@ export function Deals() {
                   onChange={async (e) => {
                     const newStage = e.target.value as Stage;
                     try {
-                      await opportunitiesAPI.update(selectedDeal.id, { stage: newStage });
+                      await opportunitiesAPI.update(selectedDeal.id, { stage: newStage.toUpperCase() });
                       setSelectedDeal({...selectedDeal, stage: newStage});
                       loadDeals();
                     } catch (err) {

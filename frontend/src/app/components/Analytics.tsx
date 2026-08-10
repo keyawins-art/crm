@@ -57,8 +57,15 @@ export function Analytics() {
         usersAPI.list()
       ]);
 
-      const rawLeads = leadsRes.data.items || [];
-      const rawOpps = oppsRes.data.items || [];
+      const rawLeads = (leadsRes.data.items || []).map((l: any) => ({
+        ...l,
+        status: l.status ? l.status.toLowerCase() : "",
+        source: l.source ? l.source.toLowerCase() : "",
+      }));
+      const rawOpps = (oppsRes.data.items || []).map((o: any) => ({
+        ...o,
+        stage: o.stage ? o.stage.toLowerCase() : "",
+      }));
       const users = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data.items || []);
 
       // Filter by period
@@ -163,10 +170,13 @@ export function Analytics() {
       });
       setConversionFunnel(funnelStages);
 
-      // Process Team Performance
       const userStats: Record<string, any> = {};
       users.forEach((u: any) => {
-        userStats[u.id] = { name: u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email, deals: 0, revenue: 0, winRate: 0, quota: 500000, won: 0, lost: 0 };
+        userStats[u.id] = { 
+          name: u.first_name ? `${u.first_name} ${u.last_name || ''}`.trim() : u.email, 
+          role: u.role?.name || '',
+          deals: 0, revenue: 0, winRate: 0, quota: 500000, won: 0, lost: 0 
+        };
       });
       opps.forEach((o: any) => {
         if (o.assigned_to_id && userStats[o.assigned_to_id]) {
@@ -183,7 +193,8 @@ export function Analytics() {
         const total = u.won + u.lost;
         u.winRate = total > 0 ? Math.round((u.won / total) * 100) : 0;
         return u;
-      }).filter(u => u.deals > 0 || u.name !== 'admin@crm.com'); // hide inactive admins
+      }).filter(u => u.role === "Sales Executive" || (!u.role && !u.name.toLowerCase().includes('admin'))); 
+      // fallback in case role is empty but they aren't admin
       setTeamPerformance(team);
 
       // Process Radar
@@ -194,7 +205,7 @@ export function Analytics() {
       
       const rData = metrics.map(metric => {
         const point: any = { subject: metric };
-        team.slice(0, 3).forEach(u => {
+        team.forEach(u => {
           let val = 0;
           if (metric === "Pipeline") val = (u.revenue / maxRevenue) * 100;
           else if (metric === "Win Rate") val = (u.winRate / maxWinRate) * 100;
@@ -469,7 +480,7 @@ export function Analytics() {
               <PolarAngleAxis dataKey="subject" tick={{ fill: "#6b7694", fontSize: 10, fontFamily: "var(--font-mono)" }} />
               <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              {teamPerformance.slice(0, 3).map((rep, idx) => (
+              {teamPerformance.map((rep, idx) => (
                 <Radar
                   key={rep.name}
                   name={rep.name.split(' ')[0]}
@@ -482,7 +493,7 @@ export function Analytics() {
             </RadarChart>
           </ResponsiveContainer>
           <div className="flex items-center justify-center gap-4 mt-2">
-            {teamPerformance.slice(0, 3).map((rep, idx) => (
+            {teamPerformance.map((rep, idx) => (
               <div key={rep.name} className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
                 <span className="w-2 h-2 rounded-full" style={{ background: ["#4f7eff", "#00d4aa", "#f59e0b", "#a78bfa", "#f43f5e"][idx % 5] }}></span>
                 {rep.name.split(' ')[0]}

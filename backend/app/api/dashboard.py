@@ -32,7 +32,7 @@ def get_dashboard_stats(
     # Calculate revenue from WON opportunities, fallback to just summing amounts if stage enum differs
     revenue_val = db.query(func.sum(Opportunity.amount)).filter(
         Opportunity.is_deleted == False,
-        Opportunity.stage == "closed_won"
+        Opportunity.stage == OpportunityStage.CLOSED_WON
     ).scalar()
     
     revenue = float(revenue_val) if revenue_val else 0.0
@@ -120,7 +120,7 @@ def get_smart_dashboard(
             "id": str(lead.id),
             "name": lead.full_name,
             "company": lead.company or "—",
-            "rating": lead.rating.value if lead.rating else None,
+            "rating": lead.rating.value.lower() if lead.rating else None,
             "days_overdue": days,
             "followup_date": lead.next_followup_date.isoformat() if lead.next_followup_date else None,
             "assigned_to": lead.assigned_to.full_name if lead.assigned_to else "Unassigned",
@@ -250,29 +250,40 @@ def get_smart_dashboard(
     current_month_actual = rev_by_month.get(today.month, 0)
 
     revenue_forecast = []
-    for row in weighted_rows:
-        m = int(row.month)
-        y = int(row.year)
+    
+    # We want to ensure we ALWAYS return the next 3 months (starting from current month)
+    # even if there are no deals closing in those months.
+    for i in range(3):
+        m = today.month + i
+        y = current_year
+        if m > 12:
+            m -= 12
+            y += 1
+            
         is_current = m == today.month and y == current_year
-        revenue_forecast.append({
-            "month": months_map.get(m, str(m)),
-            "year": y,
-            "weighted_forecast": round(float(row.weighted or 0), 2),
-            "total_pipeline": round(float(row.total_pipeline or 0), 2),
-            "deal_count": row.deal_count,
-            "actual": current_month_actual if is_current else 0,
-        })
+        
+        # Find if we have a row for this month
+        matching_row = next((r for r in weighted_rows if int(r.month) == m and int(r.year) == y), None)
+        
+        if matching_row:
+            revenue_forecast.append({
+                "month": months_map.get(m, str(m)),
+                "year": y,
+                "weighted_forecast": round(float(matching_row.weighted or 0), 2),
+                "total_pipeline": round(float(matching_row.total_pipeline or 0), 2),
+                "deal_count": matching_row.deal_count,
+                "actual": current_month_actual if is_current else 0,
+            })
+        else:
+            revenue_forecast.append({
+                "month": months_map.get(m, str(m)),
+                "year": y,
+                "weighted_forecast": 0,
+                "total_pipeline": 0,
+                "deal_count": 0,
+                "actual": current_month_actual if is_current else 0,
+            })
 
-    # If no forecast rows but we have current month data, include it
-    if not revenue_forecast and current_month_actual > 0:
-        revenue_forecast.append({
-            "month": months_map[today.month],
-            "year": current_year,
-            "weighted_forecast": 0,
-            "total_pipeline": 0,
-            "deal_count": 0,
-            "actual": current_month_actual,
-        })
 
     return {
         "overdue_followups": overdue_followups,

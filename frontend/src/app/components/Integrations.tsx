@@ -40,7 +40,7 @@ export function Integrations() {
   const available = [
     { provider: "slack", name: "Slack", description: "Send CRM notifications to Slack channels", icon: "S" },
     { provider: "google_calendar", name: "Google Calendar", description: "Sync meetings and events with Google Calendar", icon: "G" },
-    { provider: "stripe", name: "Stripe", description: "Process payments for invoices automatically", icon: "$" }
+    { provider: "stripe", name: "Stripe", description: "Process payments for invoices automatically", icon: "₹" }
   ];
 
   return (

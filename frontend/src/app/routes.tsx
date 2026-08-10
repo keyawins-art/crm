@@ -35,7 +35,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const user = getUser();
-  if (!user || (user.role !== "Admin" && user.role !== "System Administrator")) {
+  const userRole = user?.role || "";
+  const isAdmin = !!userRole && (userRole.toLowerCase().includes("admin") || userRole === "System Administrator");
+  if (!user || !isAdmin) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;

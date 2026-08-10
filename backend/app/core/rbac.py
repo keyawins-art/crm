@@ -36,7 +36,10 @@ def require_permission(permission_name: str):
                 detail="No role assigned to this user",
             )
 
-        # role.permissions is eagerly loaded (lazy="selectin")
+        # Admin & System Administrator roles have full access to all features
+        if current_user.role and ("admin" in current_user.role.name.lower() or current_user.role.name == "System Administrator"):
+            return current_user
+
         user_permissions = {p.name for p in current_user.role.permissions}
 
         if permission_name not in user_permissions:
